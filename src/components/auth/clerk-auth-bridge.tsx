@@ -6,7 +6,7 @@ import { useAuth } from "@clerk/nextjs";
 
 import { OpenAPI } from "@/lib/api/core/OpenAPI";
 import { getCampaignCenterApiV1Base } from "@/lib/api/openapi-base-url";
-import { getPublicApiBaseUrl } from "@/lib/admin/campaign-admin-api";
+import { getPublicApiBaseUrl } from "@/lib/api/public-api";
 import {
   isTrustedApiUrl,
   resetClerkTokenGetter,
