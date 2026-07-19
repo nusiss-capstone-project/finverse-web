@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Suspense } from "react";
 import {
   ClerkProvider,
   Show,
@@ -38,6 +39,9 @@ export default function RootLayout({
     /\/$/,
     "",
   );
+  const identityOrigin = (
+    process.env.NEXT_PUBLIC_IDENTITY_API_BASE_URL ?? apiOrigin
+  ).replace(/\/$/, "");
 
   return (
     <html
@@ -49,7 +53,7 @@ export default function RootLayout({
           <script
             suppressHydrationWarning
             dangerouslySetInnerHTML={{
-              __html: `window.__CAMPAIGN_CENTER_API_ORIGIN__=${JSON.stringify(apiOrigin)};`,
+              __html: `window.__CAMPAIGN_CENTER_API_ORIGIN__=${JSON.stringify(apiOrigin)};window.__IDENTITY_API_ORIGIN__=${JSON.stringify(identityOrigin)};`,
             }}
           />
           <header className="fixed right-4 top-4 z-50 flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-3 py-2 text-sm text-white shadow-2xl backdrop-blur">
@@ -69,7 +73,17 @@ export default function RootLayout({
               <UserButton />
             </Show>
           </header>
-          <ClerkAuthBridge>{children}</ClerkAuthBridge>
+          <ClerkAuthBridge>
+            <Suspense
+              fallback={
+                <div className="flex min-h-dvh items-center justify-center bg-[#030712] text-sm text-slate-400">
+                  Loading…
+                </div>
+              }
+            >
+              {children}
+            </Suspense>
+          </ClerkAuthBridge>
         </ClerkProvider>
       </body>
     </html>

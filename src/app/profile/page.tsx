@@ -2,9 +2,18 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
-import { Bell, CheckCircle2, ChevronRight, Shield, User, XCircle } from "lucide-react";
+import {
+  Bell,
+  CheckCircle2,
+  ChevronRight,
+  Loader2,
+  Shield,
+  User,
+  XCircle,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   UserShell,
   useLangFromQuery,
@@ -12,6 +21,7 @@ import {
 } from "@/components/user/user-shell";
 import {
   apiErrorMessage,
+  fetchSingpassKycAuthorizeUrl,
   fetchUserProfile,
   type UserProfile,
 } from "@/lib/web/user-app-api";
@@ -22,6 +32,8 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [kycStarting, setKycStarting] = useState(false);
+  const [kycError, setKycError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -39,6 +51,18 @@ export default function ProfilePage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const startSingpassKyc = useCallback(async () => {
+    setKycStarting(true);
+    setKycError(null);
+    try {
+      const authorizeUrl = await fetchSingpassKycAuthorizeUrl();
+      window.location.assign(authorizeUrl);
+    } catch (e) {
+      setKycError(apiErrorMessage(e));
+      setKycStarting(false);
+    }
+  }, []);
 
   return (
     <UserShell userId={userId} lang={lang}>
@@ -103,6 +127,41 @@ export default function ProfilePage() {
                 </Badge>
               </div>
 
+              {!profile.kycChecked ? (
+                <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 sm:p-6">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-lg font-semibold text-white">
+                        Complete KYC with Singpass
+                      </p>
+                      <p className="mt-1 text-sm text-slate-400">
+                        Verify your identity to unlock campaign rewards and
+                        account features.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      disabled={kycStarting}
+                      onClick={() => void startSingpassKyc()}
+                      className="h-11 shrink-0 rounded-full bg-emerald-500 px-5 text-slate-950 hover:bg-emerald-400"
+                    >
+                      {kycStarting ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin" aria-hidden />
+                          Redirecting…
+                        </>
+                      ) : (
+                        "Verify with Singpass"
+                      )}
+                    </Button>
+                  </div>
+                  {kycError ? (
+                    <p className="mt-3 text-sm text-red-300" role="alert">
+                      {kycError}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : (
             <p className="text-sm text-slate-500">No profile data.</p>

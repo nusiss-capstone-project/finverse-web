@@ -1,7 +1,10 @@
 import { UserAccountService } from "@/lib/api/services/UserAccountService";
 import type { data_StandardResponse } from "@/lib/api/models/data_StandardResponse";
 import { ApiError } from "@/lib/api/core/ApiError";
-import { buildPublicApiUrl } from "@/lib/api/public-api";
+import {
+  buildIdentityApiUrl,
+  buildPublicApiUrl,
+} from "@/lib/api/public-api";
 import { fetchWithClerkAuthorization } from "@/lib/auth/clerk-token";
 
 export const DEFAULT_WEB_USER_ID = 10001;
@@ -314,13 +317,74 @@ export function normalizeUserProfile(data: unknown): UserProfile {
   };
 }
 
+type IdentityEnvelope = {
+  code?: number;
+  message?: string;
+  err_msg?: string;
+  data?: unknown;
+};
+
+function identityErrorMessage(body: IdentityEnvelope, fallback: string): string {
+  if (typeof body.message === "string" && body.message.trim()) {
+    return body.message.trim();
+  }
+  if (typeof body.err_msg === "string" && body.err_msg.trim()) {
+    return body.err_msg.trim();
+  }
+  return fallback;
+}
+
+function unwrapIdentity<T>(body: IdentityEnvelope): T {
+  if (body.code != null && body.code !== 0) {
+    throw new Error(identityErrorMessage(body, "Request failed"));
+  }
+  return body.data as T;
+}
+
 export async function fetchUserProfile(): Promise<UserProfile> {
   const res = await fetchWithClerkAuthorization(
-    buildPublicApiUrl("/campaign-center-api/v1/web/user-profile"),
+    buildIdentityApiUrl("/identity-ms/v1/web/user-profile"),
   );
-  const body = (await res.json()) as data_StandardResponse;
+  const body = (await res.json()) as IdentityEnvelope;
   if (!res.ok) {
-    throw new Error(body.message ?? `${res.status} ${res.statusText}`);
+    throw new Error(
+      identityErrorMessage(body, `${res.status} ${res.statusText}`),
+    );
   }
-  return normalizeUserProfile(unwrap<unknown>(body));
+  return normalizeUserProfile(unwrapIdentity<unknown>(body));
+}
+
+function pickAuthorizeUrl(data: unknown): string | null {
+  if (typeof data === "string" && data.trim()) return data.trim();
+  const o = asRecord(data);
+  if (!o) return null;
+  for (const key of [
+    "authorizeUrl",
+    "authorize_url",
+    "url",
+    "loginUrl",
+    "login_url",
+  ]) {
+    const v = o[key];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return null;
+}
+
+/** Calls identity-ms Singpass login and returns the authorize URL to redirect to. */
+export async function fetchSingpassKycAuthorizeUrl(): Promise<string> {
+  const res = await fetchWithClerkAuthorization(
+    buildIdentityApiUrl("/identity-ms/v1/web/kyc/singpass/login"),
+  );
+  const body = (await res.json()) as IdentityEnvelope;
+  if (!res.ok) {
+    throw new Error(
+      identityErrorMessage(body, `${res.status} ${res.statusText}`),
+    );
+  }
+  const authorizeUrl = pickAuthorizeUrl(unwrapIdentity<unknown>(body));
+  if (!authorizeUrl) {
+    throw new Error("Singpass authorize URL missing from response");
+  }
+  return authorizeUrl;
 }

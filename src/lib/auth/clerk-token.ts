@@ -1,4 +1,7 @@
-import { getPublicApiBaseUrl } from "@/lib/api/public-api";
+import {
+  getIdentityApiBaseUrl,
+  getPublicApiBaseUrl,
+} from "@/lib/api/public-api";
 
 type ClerkTokenGetter = () => Promise<string | null>;
 
@@ -68,28 +71,35 @@ export async function fetchWithClerkAuthorization(
 }
 
 export function isTrustedApiUrl(requestUrl: string | URL): boolean {
-  const configuredBase = getPublicApiBaseUrl();
-  if (!configuredBase) return false;
+  const bases = [getPublicApiBaseUrl(), getIdentityApiBaseUrl()].filter(
+    (base, index, all) => Boolean(base) && all.indexOf(base) === index,
+  );
+  if (bases.length === 0) return false;
 
   try {
-    const trusted = new URL(configuredBase);
-    if (
-      typeof window !== "undefined" &&
-      isLoopbackHost(trusted.hostname) &&
-      !isLoopbackHost(window.location.hostname)
-    ) {
-      return false;
+    for (const configuredBase of bases) {
+      const trusted = new URL(configuredBase);
+      if (
+        typeof window !== "undefined" &&
+        isLoopbackHost(trusted.hostname) &&
+        !isLoopbackHost(window.location.hostname)
+      ) {
+        continue;
+      }
+
+      const candidate =
+        typeof requestUrl === "string"
+          ? new URL(
+              requestUrl,
+              typeof window !== "undefined"
+                ? window.location.href
+                : trusted.href,
+            )
+          : requestUrl;
+
+      if (candidate.origin === trusted.origin) return true;
     }
-
-    const candidate =
-      typeof requestUrl === "string"
-        ? new URL(
-            requestUrl,
-            typeof window !== "undefined" ? window.location.href : trusted.href,
-          )
-        : requestUrl;
-
-    return candidate.origin === trusted.origin;
+    return false;
   } catch {
     return false;
   }

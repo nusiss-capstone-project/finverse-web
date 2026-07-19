@@ -18,11 +18,10 @@ export function ClerkAuthBridge({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setReady(false);
-
     if (!isLoaded) {
       resetClerkTokenGetter();
       OpenAPI.TOKEN = undefined;
+      setReady(false);
       return;
     }
 
@@ -44,13 +43,22 @@ export function ClerkAuthBridge({ children }: { children: ReactNode }) {
     setClerkTokenGetter(getter);
     OpenAPI.TOKEN = apiBaseConfigured ? openApiTokenGetter : undefined;
     setReady(true);
+  }, [getToken, isLoaded, isSignedIn]);
 
+  useEffect(() => {
     return () => {
       setClerkTokenGetter(null);
       OpenAPI.TOKEN = undefined;
     };
-  }, [getToken, isLoaded, isSignedIn]);
+  }, []);
 
-  if (!ready) return null;
+  if (!isLoaded || !ready) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-[#030712] text-sm text-slate-400">
+        Loading…
+      </div>
+    );
+  }
+
   return <>{children}</>;
 }
