@@ -87,15 +87,14 @@ export function isTrustedApiUrl(requestUrl: string | URL): boolean {
         continue;
       }
 
-      const candidate =
-        typeof requestUrl === "string"
-          ? new URL(
-              requestUrl,
-              typeof window !== "undefined"
-                ? window.location.href
-                : trusted.href,
-            )
-          : requestUrl;
+      let candidate: URL;
+      if (typeof requestUrl === "string") {
+        const baseHref =
+          typeof window !== "undefined" ? window.location.href : trusted.href;
+        candidate = new URL(requestUrl, baseHref);
+      } else {
+        candidate = requestUrl;
+      }
 
       if (candidate.origin === trusted.origin) return true;
     }
