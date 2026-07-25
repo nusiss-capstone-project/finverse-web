@@ -42,3 +42,9 @@ yarn-error.log*
 next-env.d.ts
 
 /dist
+node_modules
+
+# snyk local reports
+snyk-report.*
+snyk-test-output.txt
+npm-audit-high-output.txt
