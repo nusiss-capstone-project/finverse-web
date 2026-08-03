@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 
 import { CampaignDescriptionSection } from "@/components/campaign-landing/campaign-description-section";
@@ -16,6 +16,7 @@ import { buildCampaignLandingViewModel } from "@/lib/web/campaign-landing-view-m
 import {
   buildCampaignLandingPageUrl,
   fetchCampaignLandingPage,
+  postCampaignJoin,
 } from "@/lib/web/user-campaign-api";
 
 function parseId(raw: string | string[] | undefined): number {
@@ -39,6 +40,8 @@ export function CampaignLandingExperience() {
   const [model, setModel] = useState<ReturnType<
     typeof buildCampaignLandingViewModel
   > | null>(null);
+  const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!Number.isFinite(campaignId)) {
@@ -89,6 +92,24 @@ export function CampaignLandingExperience() {
     };
   }, [campaignId, lang]);
 
+  const handleJoin = useCallback(async () => {
+    if (!Number.isFinite(campaignId) || joining) return;
+    setJoining(true);
+    setJoinError(null);
+    try {
+      const res = await postCampaignJoin(campaignId);
+      if (res.code != null && res.code !== 0) {
+        setJoinError(res.message ?? "Could not join this campaign.");
+        return;
+      }
+      setModel((prev) => (prev ? { ...prev, joined: true } : prev));
+    } catch (e) {
+      setJoinError(e instanceof Error ? e.message : "Could not join this campaign.");
+    } finally {
+      setJoining(false);
+    }
+  }, [campaignId, joining]);
+
   if (!Number.isFinite(campaignId)) {
     return (
       <div className="relative flex min-h-dvh flex-col items-center justify-center gap-4 bg-[#030712] px-6 text-center text-slate-300">
@@ -134,6 +155,10 @@ export function CampaignLandingExperience() {
             <CampaignLandingHero
               title={model.title}
               bannerUrl={model.bannerUrl}
+              joined={model.joined}
+              joining={joining}
+              joinError={joinError}
+              onJoin={() => void handleJoin()}
             />
             <CampaignDescriptionSection description={model.description} />
             <CampaignStepsSection steps={model.steps} />
