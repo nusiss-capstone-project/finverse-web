@@ -4,7 +4,9 @@ type CampaignStepsSectionProps = {
   steps: Array<{ title: string; description: string }>;
 };
 
-export function CampaignStepsSection({ steps }: CampaignStepsSectionProps) {
+export function CampaignStepsSection({
+  steps,
+}: Readonly<CampaignStepsSectionProps>) {
   if (steps.length === 0) return null;
 
   return (

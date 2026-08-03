@@ -6,7 +6,9 @@ type CampaignFaqSectionProps = {
   faq: Array<{ title: string; description: string }>;
 };
 
-export function CampaignFaqSection({ faq }: CampaignFaqSectionProps) {
+export function CampaignFaqSection({
+  faq,
+}: Readonly<CampaignFaqSectionProps>) {
   if (faq.length === 0) return null;
 
   return (

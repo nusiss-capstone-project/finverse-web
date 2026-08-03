@@ -6,7 +6,7 @@ type CampaignDescriptionSectionProps = {
 
 export function CampaignDescriptionSection({
   description,
-}: CampaignDescriptionSectionProps) {
+}: Readonly<CampaignDescriptionSectionProps>) {
   if (!description.trim()) return null;
 
   return (
