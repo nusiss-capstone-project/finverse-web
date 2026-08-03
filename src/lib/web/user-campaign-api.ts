@@ -24,3 +24,12 @@ export async function fetchCampaignLandingPage(
   const url = buildCampaignLandingPageUrl(campaignId, query);
   return fetchJsonEnvelope(url, { method: "GET" });
 }
+
+export async function postCampaignJoin(
+  campaignId: number,
+): Promise<StandardEnvelope<unknown>> {
+  const url = buildPublicApiUrl(
+    `/campaign-center-api/v1/web/campaigns/${campaignId}/join`,
+  );
+  return fetchJsonEnvelope(url, { method: "POST" });
+}
