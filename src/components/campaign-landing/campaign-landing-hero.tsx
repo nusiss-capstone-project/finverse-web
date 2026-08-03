@@ -6,13 +6,11 @@ import { Button } from "@/components/ui/button";
 
 type CampaignLandingHeroProps = {
   title: string;
-  subtitle: string;
   bannerUrl: string | null;
 };
 
 export function CampaignLandingHero({
   title,
-  subtitle,
   bannerUrl,
 }: CampaignLandingHeroProps) {
   function scrollToActions() {
@@ -45,11 +43,6 @@ export function CampaignLandingHero({
         <h1 className="max-w-3xl text-balance text-3xl font-semibold tracking-tight text-white sm:text-4xl md:text-5xl">
           {title}
         </h1>
-        {subtitle ? (
-          <p className="mt-4 max-w-2xl text-pretty text-base leading-relaxed text-slate-300 sm:text-lg">
-            {subtitle}
-          </p>
-        ) : null}
         <div className="mt-8 flex flex-wrap items-center gap-3">
           <Button
             type="button"
