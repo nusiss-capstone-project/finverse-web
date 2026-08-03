@@ -1,24 +1,35 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-// Next.js 16 renamed the middleware file convention to `proxy.ts`.
-// `next build` reports this entrypoint as "Proxy (Middleware)".
-const isProtectedRoute = createRouteMatcher([
-  "/wallet(.*)",
-  "/campaigns(.*)",
-  "/profile(.*)",
-]);
+function isProtectedPath(pathname: string): boolean {
+  return (
+    pathname === "/wallet" ||
+    pathname.startsWith("/wallet/") ||
+    pathname === "/campaigns" ||
+    pathname.startsWith("/campaigns/") ||
+    pathname === "/profile" ||
+    pathname.startsWith("/profile/")
+  );
+}
 
 export default clerkMiddleware(async (auth, req) => {
-  if (!isProtectedRoute(req)) return NextResponse.next();
+  if (!isProtectedPath(req.nextUrl.pathname)) {
+    return NextResponse.next();
+  }
 
-  await auth.protect();
+  const signInUrl = new URL("/sign-in", req.url);
+  signInUrl.searchParams.set("redirect_url", req.url);
+
+  await auth.protect({
+    unauthenticatedUrl: signInUrl.toString(),
+  });
 
   return NextResponse.next();
 });
 
 export const config = {
   matcher: [
+    // Keep Clerk context on app routes; skip static assets.
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
     "/(api|trpc)(.*)",
   ],

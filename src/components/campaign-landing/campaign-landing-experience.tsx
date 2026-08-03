@@ -1,18 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 
 import { CampaignDescriptionSection } from "@/components/campaign-landing/campaign-description-section";
 import { CampaignFaqSection } from "@/components/campaign-landing/campaign-faq-section";
 import { CampaignLandingHero } from "@/components/campaign-landing/campaign-landing-hero";
-import {
-  CampaignLandingToast,
-  type CampaignToastState,
-} from "@/components/campaign-landing/campaign-landing-toast";
 import { CampaignStepsSection } from "@/components/campaign-landing/campaign-steps-section";
 import { CampaignTermsSection } from "@/components/campaign-landing/campaign-terms-section";
-import { CampaignUserActionsSection } from "@/components/campaign-landing/campaign-user-actions-section";
+import { withLangParam } from "@/components/user/user-shell";
 import { isNonProductionRuntime } from "@/lib/is-non-production-runtime";
 import { buildCampaignLandingViewModel } from "@/lib/web/campaign-landing-view-model";
 import {
@@ -41,20 +39,6 @@ export function CampaignLandingExperience() {
   const [model, setModel] = useState<ReturnType<
     typeof buildCampaignLandingViewModel
   > | null>(null);
-
-  const [toast, setToast] = useState<CampaignToastState>({
-    open: false,
-    message: "",
-    variant: "success",
-  });
-
-  const dismissToast = useCallback(() => {
-    setToast((t) => ({ ...t, open: false }));
-  }, []);
-
-  const showToast = useCallback((next: Omit<CampaignToastState, "open">) => {
-    setToast({ open: true, ...next });
-  }, []);
 
   useEffect(() => {
     if (!Number.isFinite(campaignId)) {
@@ -107,8 +91,15 @@ export function CampaignLandingExperience() {
 
   if (!Number.isFinite(campaignId)) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-[#030712] px-6 text-center text-slate-300">
-        Invalid campaign link.
+      <div className="relative flex min-h-dvh flex-col items-center justify-center gap-4 bg-[#030712] px-6 text-center text-slate-300">
+        <p>Invalid campaign link.</p>
+        <Link
+          href={withLangParam("/campaigns", lang)}
+          className="inline-flex items-center gap-2 text-sm font-medium text-emerald-400 hover:text-emerald-300"
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+          Back to campaigns
+        </Link>
       </div>
     );
   }
@@ -120,6 +111,14 @@ export function CampaignLandingExperience() {
         aria-hidden
       />
       <div className="relative mx-auto max-w-5xl px-4 pb-20 pt-10 sm:px-6 lg:px-8 lg:pt-14">
+        <Link
+          href={withLangParam("/campaigns", lang)}
+          className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-slate-400 transition hover:text-emerald-400"
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+          Back to campaigns
+        </Link>
+
         {loading ? (
           <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-slate-400">
             <div className="size-10 animate-spin rounded-full border-2 border-emerald-500/30 border-t-emerald-400" />
@@ -140,18 +139,9 @@ export function CampaignLandingExperience() {
             <CampaignStepsSection steps={model.steps} />
             <CampaignTermsSection terms={model.terms} />
             <CampaignFaqSection faq={model.faq} />
-            <CampaignUserActionsSection
-              campaignId={campaignId}
-              onToast={showToast}
-            />
-            <p className="text-center text-xs text-slate-600">
-              Campaign experience · Educational simulation · Not financial advice
-            </p>
           </div>
         ) : null}
       </div>
-
-      <CampaignLandingToast toast={toast} onDismiss={dismissToast} />
     </div>
   );
 }

@@ -1,9 +1,5 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-
 type CampaignLandingHeroProps = {
   title: string;
   bannerUrl: string | null;
@@ -12,14 +8,7 @@ type CampaignLandingHeroProps = {
 export function CampaignLandingHero({
   title,
   bannerUrl,
-}: CampaignLandingHeroProps) {
-  function scrollToActions() {
-    document.getElementById("campaign-actions")?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  }
-
+}: Readonly<CampaignLandingHeroProps>) {
   return (
     <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/90 via-slate-950 to-emerald-950/40 shadow-2xl shadow-emerald-900/20 ring-1 ring-white/5">
       {bannerUrl ? (
@@ -43,20 +32,6 @@ export function CampaignLandingHero({
         <h1 className="max-w-3xl text-balance text-3xl font-semibold tracking-tight text-white sm:text-4xl md:text-5xl">
           {title}
         </h1>
-        <div className="mt-8 flex flex-wrap items-center gap-3">
-          <Button
-            type="button"
-            size="lg"
-            className="h-12 gap-2 rounded-full bg-emerald-500 px-8 text-base font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 hover:bg-emerald-400"
-            onClick={scrollToActions}
-          >
-            Join now
-            <ArrowRight className="size-4" aria-hidden />
-          </Button>
-          <span className="text-sm text-slate-500">
-            Secure · Simulated top-up for demo
-          </span>
-        </div>
       </div>
     </section>
   );
