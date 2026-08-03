@@ -1,14 +1,9 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
-import {
-  ClerkProvider,
-  Show,
-  SignInButton,
-  SignUpButton,
-  UserButton,
-} from "@clerk/nextjs";
+import { ClerkProvider } from "@clerk/nextjs";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AuthHeader } from "@/components/auth/auth-header";
 import { ClerkAuthBridge } from "@/components/auth/clerk-auth-bridge";
 import "./globals.css";
 
@@ -56,29 +51,7 @@ export default function RootLayout({
               __html: `window.__CAMPAIGN_CENTER_API_ORIGIN__=${JSON.stringify(apiOrigin)};window.__IDENTITY_API_ORIGIN__=${JSON.stringify(identityOrigin)};`,
             }}
           />
-          <header className="fixed right-4 top-4 z-50 flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-3 py-2 text-sm text-white shadow-2xl backdrop-blur">
-            <Show when="signed-out">
-              <SignInButton mode="modal">
-                <button
-                  type="button"
-                  className="rounded-full px-3 py-1.5 text-zinc-300 transition hover:bg-white/10 hover:text-white"
-                >
-                  Sign in
-                </button>
-              </SignInButton>
-              <SignUpButton mode="modal">
-                <button
-                  type="button"
-                  className="rounded-full bg-emerald-500 px-3 py-1.5 font-medium text-slate-950 transition hover:bg-emerald-400"
-                >
-                  Sign up
-                </button>
-              </SignUpButton>
-            </Show>
-            <Show when="signed-in">
-              <UserButton />
-            </Show>
-          </header>
+          <AuthHeader />
           <ClerkAuthBridge>
             <Suspense
               fallback={
