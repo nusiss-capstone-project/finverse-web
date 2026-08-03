@@ -264,16 +264,30 @@ export async function fetchWalletTransactions(params: {
 function normalizeCampaignCard(data: unknown): UserCampaignCard | null {
   const o = asRecord(data);
   const id = pickNullableNum(o, ["id", "campaignId", "campaign_id"]);
-  const name = pickStr(o, ["name", "title"]);
+  const name = pickStr(o, ["title", "name"]);
   if (id == null || !name) return null;
 
   return {
     id,
     name,
-    startTime: pickStr(o, ["startTime", "start_time"]),
-    endTime: pickStr(o, ["endTime", "end_time"]),
+    startTime: normalizeCampaignTime(
+      o?.campaignStartTime ?? o?.campaign_start_time ?? o?.startTime ?? o?.start_time,
+    ),
+    endTime: normalizeCampaignTime(
+      o?.campaignEndTime ?? o?.campaign_end_time ?? o?.endTime ?? o?.end_time,
+    ),
     joined: o && "joined" in o ? pickBool(o, ["joined"]) : undefined,
   };
+}
+
+/** API may send ISO strings or unix seconds. */
+function normalizeCampaignTime(raw: unknown): string {
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    const ms = raw < 1e12 ? raw * 1000 : raw;
+    return new Date(ms).toISOString();
+  }
+  if (typeof raw === "string" && raw.trim()) return raw.trim();
+  return "";
 }
 
 function normalizeCampaignGroup(data: unknown): UserCampaignCard[] {

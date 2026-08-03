@@ -3,14 +3,15 @@
 import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { CampaignDescriptionSection } from "@/components/campaign-landing/campaign-description-section";
+import { CampaignFaqSection } from "@/components/campaign-landing/campaign-faq-section";
 import { CampaignLandingHero } from "@/components/campaign-landing/campaign-landing-hero";
 import {
   CampaignLandingToast,
   type CampaignToastState,
 } from "@/components/campaign-landing/campaign-landing-toast";
-import { CampaignRewardSection } from "@/components/campaign-landing/campaign-reward-section";
+import { CampaignStepsSection } from "@/components/campaign-landing/campaign-steps-section";
 import { CampaignTermsSection } from "@/components/campaign-landing/campaign-terms-section";
-import { CampaignTimelineSection } from "@/components/campaign-landing/campaign-timeline-section";
 import { CampaignUserActionsSection } from "@/components/campaign-landing/campaign-user-actions-section";
 import { isNonProductionRuntime } from "@/lib/is-non-production-runtime";
 import { buildCampaignLandingViewModel } from "@/lib/web/campaign-landing-view-model";
@@ -133,24 +134,16 @@ export function CampaignLandingExperience() {
           <div className="flex flex-col gap-14 lg:gap-16">
             <CampaignLandingHero
               title={model.title}
-              subtitle={model.subtitle}
               bannerUrl={model.bannerUrl}
             />
-            <CampaignRewardSection
-              minTopUpLabel={model.minTopUpLabel}
-              rewardAmountLabel={model.rewardAmountLabel}
-              eligibilityLabel={model.eligibilityLabel}
-            />
-            <CampaignTimelineSection
-              registrationPeriodLabel={model.registrationPeriodLabel}
-              campaignPeriodLabel={model.campaignPeriodLabel}
-              rewardDistributionLabel={model.rewardDistributionLabel}
-            />
+            <CampaignDescriptionSection description={model.description} />
+            <CampaignStepsSection steps={model.steps} />
+            <CampaignTermsSection terms={model.terms} />
+            <CampaignFaqSection faq={model.faq} />
             <CampaignUserActionsSection
               campaignId={campaignId}
               onToast={showToast}
             />
-            <CampaignTermsSection terms={model.terms} />
             <p className="text-center text-xs text-slate-600">
               Campaign experience · Educational simulation · Not financial advice
             </p>
