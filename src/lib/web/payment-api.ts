@@ -1,5 +1,11 @@
 import { fetchWithClerkAuthorization } from "@/lib/auth/clerk-token";
 import { buildPublicApiUrl } from "@/lib/api/public-api";
+import {
+  asRecord,
+  pickNullableNum,
+  pickNum,
+  pickStr,
+} from "@/lib/web/api-field-utils";
 
 /** `data.PaymentMethodVO` from payment-ms swagger. */
 export type PaymentMethod = {
@@ -24,57 +30,12 @@ type PaymentEnvelope<T> = {
   data?: T;
 };
 
-function asRecord(v: unknown): Record<string, unknown> | null {
-  return v && typeof v === "object" && !Array.isArray(v)
-    ? (v as Record<string, unknown>)
-    : null;
-}
-
-function pickStr(o: Record<string, unknown> | null, keys: string[]): string {
-  if (!o) return "";
-  for (const key of keys) {
-    const v = o[key];
-    if (typeof v === "string" && v.trim()) return v.trim();
-    if (typeof v === "number" && Number.isFinite(v)) return String(v);
-  }
-  return "";
-}
-
-function pickNum(o: Record<string, unknown> | null, keys: string[]): number {
-  if (!o) return 0;
-  for (const key of keys) {
-    const v = o[key];
-    if (typeof v === "number" && Number.isFinite(v)) return v;
-    if (typeof v === "string" && v.trim()) {
-      const n = Number(v);
-      if (Number.isFinite(n)) return n;
-    }
-  }
-  return 0;
-}
-
-function pickNullableNum(
-  o: Record<string, unknown> | null,
-  keys: string[],
-): number | null {
-  if (!o) return null;
-  for (const key of keys) {
-    const v = o[key];
-    if (typeof v === "number" && Number.isFinite(v)) return v;
-    if (typeof v === "string" && v.trim()) {
-      const n = Number(v);
-      if (Number.isFinite(n)) return n;
-    }
-  }
-  return null;
-}
-
 function paymentErrorMessage(body: PaymentEnvelope<unknown>, fallback: string) {
   const msg = body.err_msg?.trim() || body.message?.trim();
   return msg || fallback;
 }
 
-function isTransientNetworkError(err: unknown): boolean {
+export function isPaymentTransientError(err: unknown): boolean {
   if (err instanceof TypeError) return true;
   if (!(err instanceof Error)) return false;
   const msg = err.message.toLowerCase();
@@ -84,10 +45,6 @@ function isTransientNetworkError(err: unknown): boolean {
     msg.includes("network request failed") ||
     msg.includes("load failed")
   );
-}
-
-export function isPaymentTransientError(err: unknown): boolean {
-  return isTransientNetworkError(err);
 }
 
 export function paymentApiErrorMessage(err: unknown): string {
@@ -132,10 +89,7 @@ export function normalizePaymentMethod(raw: unknown): PaymentMethod | null {
     last4,
     type: pickStr(o, ["type"]),
     status: pickStr(o, ["status"]),
-    paymentMethodId: pickStr(o, [
-      "payment_method_id",
-      "paymentMethodId",
-    ]),
+    paymentMethodId: pickStr(o, ["payment_method_id", "paymentMethodId"]),
     createdAt: pickNullableNum(o, ["created_at", "createdAt"]),
   };
 }

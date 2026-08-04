@@ -5,6 +5,13 @@ import {
   buildPublicApiUrl,
 } from "@/lib/api/public-api";
 import { fetchWithClerkAuthorization } from "@/lib/auth/clerk-token";
+import {
+  asRecord,
+  pickBool,
+  pickNum,
+  pickNullableNum,
+  pickStr,
+} from "@/lib/web/api-field-utils";
 
 export const DEFAULT_WEB_USER_ID = 10001;
 export const DEFAULT_WEB_CURRENCY = "USDT";
@@ -70,65 +77,6 @@ export function apiErrorMessage(err: unknown): string {
     return `${err.status} ${err.statusText}`;
   }
   return err instanceof Error ? err.message : "Request failed";
-}
-
-function asRecord(v: unknown): Record<string, unknown> | null {
-  return v && typeof v === "object" && !Array.isArray(v)
-    ? (v as Record<string, unknown>)
-    : null;
-}
-
-function pickStr(o: Record<string, unknown> | null, keys: string[]): string {
-  if (!o) return "";
-  for (const key of keys) {
-    const v = o[key];
-    if (typeof v === "string" && v.trim()) return v.trim();
-    if (typeof v === "number" && Number.isFinite(v)) return String(v);
-  }
-  return "";
-}
-
-function pickNum(o: Record<string, unknown> | null, keys: string[]): number {
-  if (!o) return 0;
-  for (const key of keys) {
-    const v = o[key];
-    if (typeof v === "number" && Number.isFinite(v)) return v;
-    if (typeof v === "string" && v.trim()) {
-      const n = Number(v);
-      if (Number.isFinite(n)) return n;
-    }
-  }
-  return 0;
-}
-
-function pickNullableNum(
-  o: Record<string, unknown> | null,
-  keys: string[],
-): number | null {
-  if (!o) return null;
-  for (const key of keys) {
-    const v = o[key];
-    if (typeof v === "number" && Number.isFinite(v)) return v;
-    if (typeof v === "string" && v.trim()) {
-      const n = Number(v);
-      if (Number.isFinite(n)) return n;
-    }
-  }
-  return null;
-}
-
-function pickBool(o: Record<string, unknown> | null, keys: string[]): boolean {
-  if (!o) return false;
-  for (const key of keys) {
-    const v = o[key];
-    if (typeof v === "boolean") return v;
-    if (typeof v === "string" && v.trim()) {
-      const normalized = v.trim().toLowerCase();
-      if (normalized === "true") return true;
-      if (normalized === "false") return false;
-    }
-  }
-  return false;
 }
 
 export function formatMoney(amount: number, currency = DEFAULT_WEB_CURRENCY) {
