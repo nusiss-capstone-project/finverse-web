@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -63,6 +64,22 @@ function PaymentSetupContent() {
     const startedAt = Date.now();
     const intervalIdRef = { current: undefined as number | undefined };
 
+    const stopPolling = () => {
+      stoppedRef.current = true;
+      if (intervalIdRef.current != null) {
+        window.clearInterval(intervalIdRef.current);
+      }
+    };
+
+    const complete = (next: SetupState, message?: string) => {
+      stopPolling();
+      if (message) setErrorMessage(message);
+      setState(next);
+      setDialogOpen(true);
+    };
+
+    const timedOut = () => Date.now() - startedAt >= POLL_TIMEOUT_MS;
+
     const pollOnce = async () => {
       if (stoppedRef.current || inFlightRef.current) return;
       inFlightRef.current = true;
@@ -70,42 +87,17 @@ function PaymentSetupContent() {
         const method = await fetchPrimaryPaymentMethod();
         if (stoppedRef.current) return;
         if (method) {
-          stoppedRef.current = true;
-          if (intervalIdRef.current != null) {
-            window.clearInterval(intervalIdRef.current);
-          }
-          setState("succeeded");
-          setDialogOpen(true);
+          complete("succeeded");
           return;
         }
-        if (Date.now() - startedAt >= POLL_TIMEOUT_MS) {
-          stoppedRef.current = true;
-          if (intervalIdRef.current != null) {
-            window.clearInterval(intervalIdRef.current);
-          }
-          setState("timeout");
-          setDialogOpen(true);
-        }
+        if (timedOut()) complete("timeout");
       } catch (e) {
         if (stoppedRef.current) return;
         if (isPaymentTransientError(e)) {
-          if (Date.now() - startedAt >= POLL_TIMEOUT_MS) {
-            stoppedRef.current = true;
-            if (intervalIdRef.current != null) {
-              window.clearInterval(intervalIdRef.current);
-            }
-            setState("timeout");
-            setDialogOpen(true);
-          }
+          if (timedOut()) complete("timeout");
           return;
         }
-        stoppedRef.current = true;
-        if (intervalIdRef.current != null) {
-          window.clearInterval(intervalIdRef.current);
-        }
-        setErrorMessage(paymentApiErrorMessage(e));
-        setState("failed");
-        setDialogOpen(true);
+        complete("failed", paymentApiErrorMessage(e));
       } finally {
         inFlightRef.current = false;
       }
@@ -117,109 +109,18 @@ function PaymentSetupContent() {
     }, POLL_INTERVAL_MS);
 
     return () => {
-      stoppedRef.current = true;
-      if (intervalIdRef.current != null) {
-        window.clearInterval(intervalIdRef.current);
-      }
+      stopPolling();
     };
   }, [cancelled]);
 
   return (
     <UserShell userId={userId} lang={lang}>
       <div className="mx-auto flex min-h-[50vh] max-w-lg flex-col items-center justify-center gap-6 text-center">
-        {state === "cancelled" ? (
-          <>
-            <span className="flex size-16 items-center justify-center rounded-full bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/25">
-              <XCircle className="size-8" aria-hidden />
-            </span>
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-white">
-                Setup cancelled
-              </h1>
-              <p className="mt-2 text-slate-400">
-                You left Stripe before finishing. No payment method was added.
-              </p>
-            </div>
-            <Button
-              type="button"
-              onClick={goToProfile}
-              className="h-11 rounded-full bg-emerald-500 px-6 text-slate-950 hover:bg-emerald-400"
-            >
-              Back to Profile
-            </Button>
-          </>
-        ) : state === "polling" ? (
-          <>
-            <Loader2
-              className="size-10 animate-spin text-emerald-400"
-              aria-hidden
-            />
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-white">
-                Confirming your payment method...
-              </h1>
-              <p className="mt-2 text-sm text-slate-500">
-                This usually takes a few seconds.
-              </p>
-            </div>
-          </>
-        ) : state === "succeeded" ? (
-          <>
-            <span className="flex size-16 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/25">
-              <CheckCircle2 className="size-8" aria-hidden />
-            </span>
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-white">
-                Payment method added
-              </h1>
-              <p className="mt-2 text-slate-400">
-                Your card is ready to use.
-              </p>
-            </div>
-          </>
-        ) : state === "timeout" ? (
-          <>
-            <Loader2 className="size-10 text-amber-300" aria-hidden />
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-white">
-                Still confirming
-              </h1>
-              <p className="mt-2 text-slate-400">
-                We&apos;re still confirming your payment method. Please check
-                again shortly.
-              </p>
-            </div>
-            <Button
-              type="button"
-              onClick={goToProfile}
-              className="h-11 rounded-full bg-emerald-500 px-6 text-slate-950 hover:bg-emerald-400"
-            >
-              Back to Profile
-            </Button>
-          </>
-        ) : (
-          <>
-            <span className="flex size-16 items-center justify-center rounded-full bg-red-500/15 text-red-300 ring-1 ring-red-500/25">
-              <XCircle className="size-8" aria-hidden />
-            </span>
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-white">
-                Confirmation failed
-              </h1>
-              <p className="mt-2 text-slate-400">
-                {errorMessage ?? "Something went wrong."}
-              </p>
-            </div>
-            <Button
-              type="button"
-              onClick={goToProfile}
-              className="h-11 rounded-full bg-emerald-500 px-6 text-slate-950 hover:bg-emerald-400"
-            >
-              Back to Profile
-            </Button>
-          </>
-        )}
-
+        <SetupStatusPanel
+          state={state}
+          errorMessage={errorMessage}
+          onBackToProfile={goToProfile}
+        />
         {state === "polling" ? (
           <Link
             href={withLangParam("/profile", lang)}
@@ -230,86 +131,235 @@ function PaymentSetupContent() {
         ) : null}
       </div>
 
+      <SetupResultDialogs
+        state={state}
+        dialogOpen={dialogOpen}
+        errorMessage={errorMessage}
+        onDialogOpenChange={setDialogOpen}
+        onBackToProfile={goToProfile}
+      />
+    </UserShell>
+  );
+}
+
+function SetupStatusPanel({
+  state,
+  errorMessage,
+  onBackToProfile,
+}: Readonly<{
+  state: SetupState;
+  errorMessage: string | null;
+  onBackToProfile: () => void;
+}>) {
+  switch (state) {
+    case "cancelled":
+      return (
+        <StatusBlock
+          tone="amber"
+          icon={<XCircle className="size-8" aria-hidden />}
+          title="Setup cancelled"
+          description="You left Stripe before finishing. No payment method was added."
+          actionLabel="Back to Profile"
+          onAction={onBackToProfile}
+        />
+      );
+    case "polling":
+      return (
+        <>
+          <Loader2
+            className="size-10 animate-spin text-emerald-400"
+            aria-hidden
+          />
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-white">
+              Confirming your payment method...
+            </h1>
+            <p className="mt-2 text-sm text-slate-500">
+              This usually takes a few seconds.
+            </p>
+          </div>
+        </>
+      );
+    case "succeeded":
+      return (
+        <StatusBlock
+          tone="emerald"
+          icon={<CheckCircle2 className="size-8" aria-hidden />}
+          title="Payment method added"
+          description="Your card is ready to use."
+        />
+      );
+    case "timeout":
+      return (
+        <StatusBlock
+          tone="amber"
+          icon={<Loader2 className="size-10 text-amber-300" aria-hidden />}
+          title="Still confirming"
+          description="We're still confirming your payment method. Please check again shortly."
+          actionLabel="Back to Profile"
+          onAction={onBackToProfile}
+          bareIcon
+        />
+      );
+    case "failed":
+      return (
+        <StatusBlock
+          tone="red"
+          icon={<XCircle className="size-8" aria-hidden />}
+          title="Confirmation failed"
+          description={errorMessage ?? "Something went wrong."}
+          actionLabel="Back to Profile"
+          onAction={onBackToProfile}
+        />
+      );
+    default:
+      return null;
+  }
+}
+
+function StatusBlock({
+  tone,
+  icon,
+  title,
+  description,
+  actionLabel,
+  onAction,
+  bareIcon = false,
+}: Readonly<{
+  tone: "amber" | "emerald" | "red";
+  icon: ReactNode;
+  title: string;
+  description: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  bareIcon?: boolean;
+}>) {
+  const toneClassByTone = {
+    emerald: "bg-emerald-500/15 text-emerald-400 ring-emerald-500/25",
+    red: "bg-red-500/15 text-red-300 ring-red-500/25",
+    amber: "bg-amber-500/15 text-amber-300 ring-amber-500/25",
+  } as const;
+  const toneClass = toneClassByTone[tone];
+
+  return (
+    <>
+      {bareIcon ? (
+        icon
+      ) : (
+        <span
+          className={`flex size-16 items-center justify-center rounded-full ring-1 ${toneClass}`}
+        >
+          {icon}
+        </span>
+      )}
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-white">
+          {title}
+        </h1>
+        <p className="mt-2 text-slate-400">{description}</p>
+      </div>
+      {actionLabel && onAction ? (
+        <Button
+          type="button"
+          onClick={onAction}
+          className="h-11 rounded-full bg-emerald-500 px-6 text-slate-950 hover:bg-emerald-400"
+        >
+          {actionLabel}
+        </Button>
+      ) : null}
+    </>
+  );
+}
+
+function SetupResultDialogs({
+  state,
+  dialogOpen,
+  errorMessage,
+  onDialogOpenChange,
+  onBackToProfile,
+}: Readonly<{
+  state: SetupState;
+  dialogOpen: boolean;
+  errorMessage: string | null;
+  onDialogOpenChange: (open: boolean) => void;
+  onBackToProfile: () => void;
+}>) {
+  const showOutcome =
+    dialogOpen && (state === "succeeded" || state === "failed");
+  const showTimeout = dialogOpen && state === "timeout";
+
+  return (
+    <>
       <Dialog
-        open={dialogOpen && (state === "succeeded" || state === "failed")}
+        open={showOutcome}
         onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open && state === "succeeded") goToProfile();
+          onDialogOpenChange(open);
+          if (!open && state === "succeeded") onBackToProfile();
         }}
       >
         <DialogContent className="border border-white/10 bg-slate-950 text-slate-100 sm:max-w-md">
           {state === "succeeded" ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>Payment method added</DialogTitle>
-                <DialogDescription className="text-slate-400">
-                  Your card was confirmed successfully.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button
-                  type="button"
-                  onClick={goToProfile}
-                  className="rounded-full bg-emerald-500 text-slate-950 hover:bg-emerald-400"
-                >
-                  Back to Profile
-                </Button>
-              </DialogFooter>
-            </>
+            <OutcomeDialogBody
+              title="Payment method added"
+              description="Your card was confirmed successfully."
+              onConfirm={onBackToProfile}
+            />
           ) : (
-            <>
-              <DialogHeader>
-                <DialogTitle>Confirmation failed</DialogTitle>
-                <DialogDescription className="text-slate-400">
-                  {errorMessage ?? "Something went wrong."}
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setDialogOpen(false);
-                    goToProfile();
-                  }}
-                  className="rounded-full bg-emerald-500 text-slate-950 hover:bg-emerald-400"
-                >
-                  Back to Profile
-                </Button>
-              </DialogFooter>
-            </>
+            <OutcomeDialogBody
+              title="Confirmation failed"
+              description={errorMessage ?? "Something went wrong."}
+              onConfirm={() => {
+                onDialogOpenChange(false);
+                onBackToProfile();
+              }}
+            />
           )}
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={dialogOpen && state === "timeout"}
-        onOpenChange={(open) => {
-          setDialogOpen(open);
-        }}
-      >
+      <Dialog open={showTimeout} onOpenChange={onDialogOpenChange}>
         <DialogContent className="border border-white/10 bg-slate-950 text-slate-100 sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Still confirming</DialogTitle>
-            <DialogDescription className="text-slate-400">
-              We&apos;re still confirming your payment method. Please check
-              again shortly.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              onClick={() => {
-                setDialogOpen(false);
-                goToProfile();
-              }}
-              className="rounded-full bg-emerald-500 text-slate-950 hover:bg-emerald-400"
-            >
-              Back to Profile
-            </Button>
-          </DialogFooter>
+          <OutcomeDialogBody
+            title="Still confirming"
+            description="We're still confirming your payment method. Please check again shortly."
+            onConfirm={() => {
+              onDialogOpenChange(false);
+              onBackToProfile();
+            }}
+          />
         </DialogContent>
       </Dialog>
-    </UserShell>
+    </>
+  );
+}
+
+function OutcomeDialogBody({
+  title,
+  description,
+  onConfirm,
+}: Readonly<{
+  title: string;
+  description: string;
+  onConfirm: () => void;
+}>) {
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription className="text-slate-400">
+          {description}
+        </DialogDescription>
+      </DialogHeader>
+      <DialogFooter>
+        <Button
+          type="button"
+          onClick={onConfirm}
+          className="rounded-full bg-emerald-500 text-slate-950 hover:bg-emerald-400"
+        >
+          Back to Profile
+        </Button>
+      </DialogFooter>
+    </>
   );
 }
 

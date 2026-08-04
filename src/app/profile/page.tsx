@@ -78,6 +78,15 @@ function removeStorage(key: string) {
   }
 }
 
+function marketDisplayValue(
+  selectedMarket: string,
+  profileMarket: string | undefined,
+): string {
+  if (selectedMarket) return optionLabel(MARKET_OPTIONS, selectedMarket);
+  if (profileMarket) return profileMarket;
+  return "Select market";
+}
+
 export default function ProfilePage() {
   const userId = useDemoUserId();
   const lang = useLangFromQuery();
@@ -465,13 +474,7 @@ export default function ProfilePage() {
             icon={<MapPin className="size-7" aria-hidden />}
             title="Market"
             value={market}
-            displayValue={
-              market
-                ? optionLabel(MARKET_OPTIONS, market)
-                : profile?.market
-                  ? profile.market
-                  : "Select market"
-            }
+            displayValue={marketDisplayValue(market, profile?.market)}
             placeholder="Select market"
             disabled={
               savingMarket || loading || !profile || marketLocked

@@ -75,55 +75,14 @@ export function ProfilePaymentMethodSection() {
           </div>
         </div>
 
-        {loading ? (
-          <p className="text-sm text-slate-500">Loading payment method…</p>
-        ) : loadError ? (
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-red-300" role="alert">
-              {loadError}
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void load()}
-              className="h-10 w-fit rounded-full border-white/15 bg-transparent text-white hover:bg-white/5"
-            >
-              Retry
-            </Button>
-          </div>
-        ) : method ? (
-          <div className="rounded-2xl border border-white/10 bg-slate-900/50 px-5 py-4">
-            <p className="text-lg font-semibold text-white">
-              {formatCardBrand(method.brand)}
-              {method.last4 ? (
-                <span className="ml-2 font-mono text-slate-300">
-                  •••• {method.last4}
-                </span>
-              ) : null}
-            </p>
-            {method.type || method.status ? (
-              <p className="mt-2 text-sm text-slate-500">
-                {[method.type, method.status].filter(Boolean).join(" · ")}
-              </p>
-            ) : null}
-          </div>
-        ) : (
-          <Button
-            type="button"
-            disabled={adding}
-            onClick={() => void startSetup()}
-            className="h-11 rounded-full bg-emerald-500 px-5 text-slate-950 hover:bg-emerald-400"
-          >
-            {adding ? (
-              <>
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-                Redirecting…
-              </>
-            ) : (
-              "Add payment method"
-            )}
-          </Button>
-        )}
+        <PaymentMethodBody
+          loading={loading}
+          loadError={loadError}
+          method={method}
+          adding={adding}
+          onRetry={() => void load()}
+          onStartSetup={() => void startSetup()}
+        />
       </section>
 
       <Dialog
@@ -151,5 +110,85 @@ export function ProfilePaymentMethodSection() {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function PaymentMethodBody({
+  loading,
+  loadError,
+  method,
+  adding,
+  onRetry,
+  onStartSetup,
+}: Readonly<{
+  loading: boolean;
+  loadError: string | null;
+  method: PaymentMethod | null;
+  adding: boolean;
+  onRetry: () => void;
+  onStartSetup: () => void;
+}>) {
+  if (loading) {
+    return <p className="text-sm text-slate-500">Loading payment method…</p>;
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-red-300" role="alert">
+          {loadError}
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onRetry}
+          className="h-10 w-fit rounded-full border-white/15 bg-transparent text-white hover:bg-white/5"
+        >
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  if (method) {
+    return <BoundPaymentMethodCard method={method} />;
+  }
+
+  return (
+    <Button
+      type="button"
+      disabled={adding}
+      onClick={onStartSetup}
+      className="h-11 rounded-full bg-emerald-500 px-5 text-slate-950 hover:bg-emerald-400"
+    >
+      {adding ? (
+        <>
+          <Loader2 className="size-4 animate-spin" aria-hidden />
+          Redirecting…
+        </>
+      ) : (
+        "Add payment method"
+      )}
+    </Button>
+  );
+}
+
+function BoundPaymentMethodCard({
+  method,
+}: Readonly<{ method: PaymentMethod }>) {
+  const meta = [method.type, method.status].filter(Boolean).join(" · ");
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-slate-900/50 px-5 py-4">
+      <p className="text-lg font-semibold text-white">
+        {formatCardBrand(method.brand)}
+        {method.last4 ? (
+          <span className="ml-2 font-mono text-slate-300">
+            •••• {method.last4}
+          </span>
+        ) : null}
+      </p>
+      {meta ? <p className="mt-2 text-sm text-slate-500">{meta}</p> : null}
+    </div>
   );
 }
