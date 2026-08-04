@@ -8,7 +8,9 @@ function isProtectedPath(pathname: string): boolean {
     pathname === "/campaigns" ||
     pathname.startsWith("/campaigns/") ||
     pathname === "/profile" ||
-    pathname.startsWith("/profile/")
+    pathname.startsWith("/profile/") ||
+    pathname === "/payment" ||
+    pathname.startsWith("/payment/")
   );
 }
 

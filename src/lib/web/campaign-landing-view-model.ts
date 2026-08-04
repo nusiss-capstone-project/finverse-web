@@ -1,3 +1,9 @@
+import {
+  asRecord,
+  pickBool,
+  pickStr,
+} from "@/lib/web/api-field-utils";
+
 export type CampaignLandingRepeatableItem = {
   title: string;
   description: string;
@@ -13,32 +19,6 @@ export type CampaignLandingViewModel = {
   faq: CampaignLandingRepeatableItem[];
   joined: boolean;
 };
-
-function pickStr(o: Record<string, unknown> | null, keys: string[]): string {
-  if (!o) return "";
-  for (const k of keys) {
-    const v = o[k];
-    if (typeof v === "string" && v.trim()) return v.trim();
-    if (typeof v === "number" && Number.isFinite(v)) return String(v);
-  }
-  return "";
-}
-
-function asRecord(v: unknown): Record<string, unknown> | null {
-  if (v && typeof v === "object" && !Array.isArray(v)) {
-    return v as Record<string, unknown>;
-  }
-  return null;
-}
-
-function pickBool(o: Record<string, unknown> | null, keys: string[]): boolean {
-  if (!o) return false;
-  for (const key of keys) {
-    const v = o[key];
-    if (typeof v === "boolean") return v;
-  }
-  return false;
-}
 
 /** Maps `data.LandingPageRepeatableItemVO` (title + description). */
 function normalizeRepeatableItems(

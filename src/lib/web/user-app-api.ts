@@ -2,10 +2,16 @@ import { UserAccountService } from "@/lib/api/services/UserAccountService";
 import type { data_StandardResponse } from "@/lib/api/models/data_StandardResponse";
 import { ApiError } from "@/lib/api/core/ApiError";
 import {
-  buildIdentityApiUrl,
   buildPublicApiUrl,
 } from "@/lib/api/public-api";
 import { fetchWithClerkAuthorization } from "@/lib/auth/clerk-token";
+import {
+  asRecord,
+  pickBool,
+  pickNum,
+  pickNullableNum,
+  pickStr,
+} from "@/lib/web/api-field-utils";
 
 export const DEFAULT_WEB_USER_ID = 10001;
 export const DEFAULT_WEB_CURRENCY = "USDT";
@@ -53,6 +59,8 @@ export type UserProfile = {
   kycChecked: boolean;
   registeredAt: string;
   username: string;
+  language: string;
+  market: string;
 };
 
 function unwrap<T>(body: data_StandardResponse): T {
@@ -69,65 +77,6 @@ export function apiErrorMessage(err: unknown): string {
     return `${err.status} ${err.statusText}`;
   }
   return err instanceof Error ? err.message : "Request failed";
-}
-
-function asRecord(v: unknown): Record<string, unknown> | null {
-  return v && typeof v === "object" && !Array.isArray(v)
-    ? (v as Record<string, unknown>)
-    : null;
-}
-
-function pickStr(o: Record<string, unknown> | null, keys: string[]): string {
-  if (!o) return "";
-  for (const key of keys) {
-    const v = o[key];
-    if (typeof v === "string" && v.trim()) return v.trim();
-    if (typeof v === "number" && Number.isFinite(v)) return String(v);
-  }
-  return "";
-}
-
-function pickNum(o: Record<string, unknown> | null, keys: string[]): number {
-  if (!o) return 0;
-  for (const key of keys) {
-    const v = o[key];
-    if (typeof v === "number" && Number.isFinite(v)) return v;
-    if (typeof v === "string" && v.trim()) {
-      const n = Number(v);
-      if (Number.isFinite(n)) return n;
-    }
-  }
-  return 0;
-}
-
-function pickNullableNum(
-  o: Record<string, unknown> | null,
-  keys: string[],
-): number | null {
-  if (!o) return null;
-  for (const key of keys) {
-    const v = o[key];
-    if (typeof v === "number" && Number.isFinite(v)) return v;
-    if (typeof v === "string" && v.trim()) {
-      const n = Number(v);
-      if (Number.isFinite(n)) return n;
-    }
-  }
-  return null;
-}
-
-function pickBool(o: Record<string, unknown> | null, keys: string[]): boolean {
-  if (!o) return false;
-  for (const key of keys) {
-    const v = o[key];
-    if (typeof v === "boolean") return v;
-    if (typeof v === "string" && v.trim()) {
-      const normalized = v.trim().toLowerCase();
-      if (normalized === "true") return true;
-      if (normalized === "false") return false;
-    }
-  }
-  return false;
 }
 
 export function formatMoney(amount: number, currency = DEFAULT_WEB_CURRENCY) {
@@ -328,8 +277,16 @@ export function normalizeUserProfile(data: unknown): UserProfile {
     kycChecked: pickBool(o, ["kycChecked", "kyc_checked"]),
     registeredAt: pickStr(o, ["registeredAt", "registered_at"]),
     username: pickStr(o, ["username"]),
+    language: pickStr(o, ["language"]),
+    market: pickStr(o, ["market"]),
   };
 }
+
+export type UpdateUserProfileInput = {
+  username?: string;
+  language?: string;
+  market?: string;
+};
 
 type IdentityEnvelope = {
   code?: number;
@@ -355,17 +312,47 @@ function unwrapIdentity<T>(body: IdentityEnvelope): T {
   return body.data as T;
 }
 
-export async function fetchUserProfile(): Promise<UserProfile> {
-  const res = await fetchWithClerkAuthorization(
-    buildIdentityApiUrl("/identity-ms/v1/web/user-profile"),
-  );
+async function parseIdentityResponse(res: Response): Promise<IdentityEnvelope> {
   const body = (await res.json()) as IdentityEnvelope;
   if (!res.ok) {
     throw new Error(
       identityErrorMessage(body, `${res.status} ${res.statusText}`),
     );
   }
+  unwrapIdentity(body);
+  return body;
+}
+
+export async function fetchUserProfile(): Promise<UserProfile> {
+  const res = await fetchWithClerkAuthorization(
+    buildPublicApiUrl("/identity-ms/v1/web/user-profile"),
+  );
+  const body = await parseIdentityResponse(res);
   return normalizeUserProfile(unwrapIdentity<unknown>(body));
+}
+
+/**
+ * PUT `/identity-ms/v1/web/user-profile`
+ * Body: `data.UpdateUserProfileRequest` — username / language / market.
+ * Market cannot be changed once already set (API returns 400).
+ */
+export async function updateUserProfile(
+  input: UpdateUserProfileInput,
+): Promise<void> {
+  const payload: Record<string, string> = {};
+  if (input.username != null) payload.username = input.username;
+  if (input.language != null) payload.language = input.language;
+  if (input.market != null) payload.market = input.market;
+
+  const res = await fetchWithClerkAuthorization(
+    buildPublicApiUrl("/identity-ms/v1/web/user-profile"),
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  );
+  await parseIdentityResponse(res);
 }
 
 function pickAuthorizeUrl(data: unknown): string | null {
@@ -388,14 +375,9 @@ function pickAuthorizeUrl(data: unknown): string | null {
 /** Calls identity-ms Singpass login and returns the authorize URL to redirect to. */
 export async function fetchSingpassKycAuthorizeUrl(): Promise<string> {
   const res = await fetchWithClerkAuthorization(
-    buildIdentityApiUrl("/identity-ms/v1/web/kyc/singpass/login"),
+    buildPublicApiUrl("/identity-ms/v1/web/kyc/singpass/login"),
   );
-  const body = (await res.json()) as IdentityEnvelope;
-  if (!res.ok) {
-    throw new Error(
-      identityErrorMessage(body, `${res.status} ${res.statusText}`),
-    );
-  }
+  const body = await parseIdentityResponse(res);
   const authorizeUrl = pickAuthorizeUrl(unwrapIdentity<unknown>(body));
   if (!authorizeUrl) {
     throw new Error("Singpass authorize URL missing from response");

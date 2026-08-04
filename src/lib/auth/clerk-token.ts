@@ -1,5 +1,4 @@
 import {
-  getIdentityApiBaseUrl,
   getPublicApiBaseUrl,
 } from "@/lib/api/public-api";
 
@@ -71,34 +70,29 @@ export async function fetchWithClerkAuthorization(
 }
 
 export function isTrustedApiUrl(requestUrl: string | URL): boolean {
-  const bases = [getPublicApiBaseUrl(), getIdentityApiBaseUrl()].filter(
-    (base, index, all) => Boolean(base) && all.indexOf(base) === index,
-  );
-  if (bases.length === 0) return false;
+  const base = getPublicApiBaseUrl();
+  if (!base) return false;
 
   try {
-    for (const configuredBase of bases) {
-      const trusted = new URL(configuredBase);
-      if (
-        typeof window !== "undefined" &&
-        isLoopbackHost(trusted.hostname) &&
-        !isLoopbackHost(window.location.hostname)
-      ) {
-        continue;
-      }
-
-      let candidate: URL;
-      if (typeof requestUrl === "string") {
-        const baseHref =
-          typeof window !== "undefined" ? window.location.href : trusted.href;
-        candidate = new URL(requestUrl, baseHref);
-      } else {
-        candidate = requestUrl;
-      }
-
-      if (candidate.origin === trusted.origin) return true;
+    const trusted = new URL(base);
+    if (
+      typeof window !== "undefined" &&
+      isLoopbackHost(trusted.hostname) &&
+      !isLoopbackHost(window.location.hostname)
+    ) {
+      return false;
     }
-    return false;
+
+    let candidate: URL;
+    if (typeof requestUrl === "string") {
+      const baseHref =
+        typeof window !== "undefined" ? window.location.href : trusted.href;
+      candidate = new URL(requestUrl, baseHref);
+    } else {
+      candidate = requestUrl;
+    }
+
+    return candidate.origin === trusted.origin;
   } catch {
     return false;
   }

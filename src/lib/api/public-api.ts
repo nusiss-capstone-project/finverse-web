@@ -12,34 +12,9 @@ export function getPublicApiBaseUrl(): string {
   return (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
 }
 
-/**
- * Identity service origin (no trailing slash).
- * Falls back to the campaign API origin when `NEXT_PUBLIC_IDENTITY_API_BASE_URL` is unset.
- */
-export function getIdentityApiBaseUrl(): string {
-  if (typeof window !== "undefined") {
-    const injected = window.__IDENTITY_API_ORIGIN__;
-    if (injected != null && injected !== "") {
-      return injected.replace(/\/$/, "");
-    }
-  }
-  const configured = (process.env.NEXT_PUBLIC_IDENTITY_API_BASE_URL ?? "").replace(
-    /\/$/,
-    "",
-  );
-  return configured || getPublicApiBaseUrl();
-}
-
 /** Path must start with `/`, e.g. `/campaign-center-api/v1/web/campaigns` */
 export function buildPublicApiUrl(path: string): string {
   const base = getPublicApiBaseUrl();
-  const p = path.startsWith("/") ? path : `/${path}`;
-  return `${base}${p}`;
-}
-
-/** Path must start with `/`, e.g. `/identity-ms/v1/web/user-profile` */
-export function buildIdentityApiUrl(path: string): string {
-  const base = getIdentityApiBaseUrl();
   const p = path.startsWith("/") ? path : `/${path}`;
   return `${base}${p}`;
 }
