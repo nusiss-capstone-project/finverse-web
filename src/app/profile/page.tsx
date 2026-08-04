@@ -28,49 +28,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ProfilePaymentMethodSection } from "@/components/user/profile-payment-method";
 import {
   UserShell,
   useLangFromQuery,
   useDemoUserId,
 } from "@/components/user/user-shell";
 import {
+  LANGUAGE_OPTIONS,
+  MARKET_OPTIONS,
+  isLanguageCode,
+  isMarketCode,
+  optionLabel,
+} from "@/lib/web/profile-enums";
+import {
   apiErrorMessage,
   fetchSingpassKycAuthorizeUrl,
   fetchUserProfile,
+  updateUserProfile,
   type UserProfile,
 } from "@/lib/web/user-app-api";
 
-const LANGUAGE_OPTIONS = [
-  { value: "en", label: "English" },
-  { value: "zh-CN", label: "简体中文" },
-  { value: "zh-TW", label: "繁體中文" },
-  { value: "ms", label: "Bahasa Melayu" },
-  { value: "id", label: "Bahasa Indonesia" },
-  { value: "th", label: "ไทย" },
-  { value: "vi", label: "Tiếng Việt" },
-  { value: "ja", label: "日本語" },
-] as const;
-
-const MARKET_OPTIONS = [
-  { value: "SG", label: "Singapore" },
-  { value: "HK", label: "Hong Kong" },
-  { value: "MY", label: "Malaysia" },
-  { value: "ID", label: "Indonesia" },
-  { value: "TH", label: "Thailand" },
-  { value: "VN", label: "Vietnam" },
-  { value: "PH", label: "Philippines" },
-  { value: "AU", label: "Australia" },
-] as const;
-
-const STORAGE = {
-  language: "finverse.profile.language",
-  market: "finverse.profile.market",
-  displayName: "finverse.profile.displayName",
-  avatar: "finverse.profile.avatar",
-} as const;
-
-const DEFAULT_LANGUAGE = "en";
-const DEFAULT_MARKET = "SG";
+const AVATAR_STORAGE_KEY = "finverse.profile.avatar";
 const MAX_AVATAR_BYTES = 1.5 * 1024 * 1024;
 
 function readStorage(key: string): string | null {
@@ -99,13 +78,6 @@ function removeStorage(key: string) {
   }
 }
 
-function optionLabel(
-  options: readonly { value: string; label: string }[],
-  value: string,
-): string {
-  return options.find((o) => o.value === value)?.label ?? value;
-}
-
 export default function ProfilePage() {
   const userId = useDemoUserId();
   const lang = useLangFromQuery();
@@ -117,19 +89,29 @@ export default function ProfilePage() {
   const [kycStarting, setKycStarting] = useState(false);
   const [kycError, setKycError] = useState<string | null>(null);
 
-  const [language, setLanguage] = useState(DEFAULT_LANGUAGE);
-  const [market, setMarket] = useState(DEFAULT_MARKET);
+  const [language, setLanguage] = useState("");
+  const [market, setMarket] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [savingName, setSavingName] = useState(false);
+  const [savingLanguage, setSavingLanguage] = useState(false);
+  const [savingMarket, setSavingMarket] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+
+  const marketLocked = Boolean(profile?.market?.trim());
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setProfile(await fetchUserProfile());
+      const next = await fetchUserProfile();
+      setProfile(next);
+      setDisplayName(next.username);
+      setLanguage(isLanguageCode(next.language) ? next.language : "");
+      setMarket(isMarketCode(next.market) ? next.market : "");
     } catch (e) {
       setProfile(null);
       setError(apiErrorMessage(e));
@@ -143,32 +125,9 @@ export default function ProfilePage() {
   }, [load]);
 
   useEffect(() => {
-    const storedLang = readStorage(STORAGE.language);
-    const storedMarket = readStorage(STORAGE.market);
-    const storedName = readStorage(STORAGE.displayName);
-    const storedAvatar = readStorage(STORAGE.avatar);
-
-    if (
-      storedLang &&
-      LANGUAGE_OPTIONS.some((o) => o.value === storedLang)
-    ) {
-      setLanguage(storedLang);
-    }
-    if (
-      storedMarket &&
-      MARKET_OPTIONS.some((o) => o.value === storedMarket)
-    ) {
-      setMarket(storedMarket);
-    }
-    if (storedName) setDisplayName(storedName);
+    const storedAvatar = readStorage(AVATAR_STORAGE_KEY);
     if (storedAvatar) setAvatarUrl(storedAvatar);
   }, []);
-
-  useEffect(() => {
-    if (!displayName && profile?.username) {
-      setDisplayName(profile.username);
-    }
-  }, [displayName, profile?.username]);
 
   const startSingpassKyc = useCallback(async () => {
     setKycStarting(true);
@@ -182,19 +141,44 @@ export default function ProfilePage() {
     }
   }, []);
 
-  const onLanguageChange = (value: string) => {
+  const onLanguageChange = async (value: string) => {
+    if (!isLanguageCode(value) || savingLanguage) return;
+    const previous = language;
     setLanguage(value);
-    writeStorage(STORAGE.language, value);
+    setSavingLanguage(true);
+    setSettingsError(null);
+    try {
+      await updateUserProfile({ language: value });
+      setProfile((prev) => (prev ? { ...prev, language: value } : prev));
+    } catch (e) {
+      setLanguage(previous);
+      setSettingsError(apiErrorMessage(e));
+    } finally {
+      setSavingLanguage(false);
+    }
   };
 
-  const onMarketChange = (value: string) => {
+  const onMarketChange = async (value: string) => {
+    if (!isMarketCode(value) || savingMarket || marketLocked) return;
+    const previous = market;
     setMarket(value);
-    writeStorage(STORAGE.market, value);
+    setSavingMarket(true);
+    setSettingsError(null);
+    try {
+      await updateUserProfile({ market: value });
+      setProfile((prev) => (prev ? { ...prev, market: value } : prev));
+    } catch (e) {
+      setMarket(previous);
+      setSettingsError(apiErrorMessage(e));
+    } finally {
+      setSavingMarket(false);
+    }
   };
 
   const beginEditName = () => {
     setNameDraft(displayName || profile?.username || "");
     setEditingName(true);
+    setSettingsError(null);
   };
 
   const cancelEditName = () => {
@@ -202,12 +186,21 @@ export default function ProfilePage() {
     setNameDraft("");
   };
 
-  const saveName = () => {
+  const saveName = async () => {
     const next = nameDraft.trim();
-    if (!next) return;
-    setDisplayName(next);
-    writeStorage(STORAGE.displayName, next);
-    setEditingName(false);
+    if (!next || savingName) return;
+    setSavingName(true);
+    setSettingsError(null);
+    try {
+      await updateUserProfile({ username: next });
+      setDisplayName(next);
+      setProfile((prev) => (prev ? { ...prev, username: next } : prev));
+      setEditingName(false);
+    } catch (e) {
+      setSettingsError(apiErrorMessage(e));
+    } finally {
+      setSavingName(false);
+    }
   };
 
   const onAvatarPicked = (file: File | undefined) => {
@@ -226,7 +219,7 @@ export default function ProfilePage() {
       const dataUrl = typeof reader.result === "string" ? reader.result : null;
       if (!dataUrl) return;
       setAvatarUrl(dataUrl);
-      writeStorage(STORAGE.avatar, dataUrl);
+      writeStorage(AVATAR_STORAGE_KEY, dataUrl);
     };
     reader.onerror = () => setAvatarError("Could not read that image.");
     reader.readAsDataURL(file);
@@ -234,7 +227,7 @@ export default function ProfilePage() {
 
   const clearAvatar = () => {
     setAvatarUrl(null);
-    removeStorage(STORAGE.avatar);
+    removeStorage(AVATAR_STORAGE_KEY);
     setAvatarError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -255,6 +248,15 @@ export default function ProfilePage() {
             role="alert"
           >
             {error}
+          </p>
+        ) : null}
+
+        {settingsError ? (
+          <p
+            className="rounded-2xl border border-red-500/20 bg-red-950/40 px-4 py-3 text-sm text-red-200"
+            role="alert"
+          >
+            {settingsError}
           </p>
         ) : null}
 
@@ -314,9 +316,10 @@ export default function ProfilePage() {
                           value={nameDraft}
                           onChange={(e) => setNameDraft(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === "Enter") saveName();
+                            if (e.key === "Enter") void saveName();
                             if (e.key === "Escape") cancelEditName();
                           }}
+                          disabled={savingName}
                           autoFocus
                           className="h-11 rounded-2xl border-white/10 bg-slate-900/80 px-4 text-xl font-semibold text-white md:text-xl"
                           aria-label="Display name"
@@ -324,16 +327,22 @@ export default function ProfilePage() {
                         <Button
                           type="button"
                           size="icon"
-                          onClick={saveName}
+                          disabled={savingName}
+                          onClick={() => void saveName()}
                           className="size-10 rounded-full bg-emerald-500 text-slate-950 hover:bg-emerald-400"
                           aria-label="Save name"
                         >
-                          <Check className="size-4" aria-hidden />
+                          {savingName ? (
+                            <Loader2 className="size-4 animate-spin" aria-hidden />
+                          ) : (
+                            <Check className="size-4" aria-hidden />
+                          )}
                         </Button>
                         <Button
                           type="button"
                           size="icon"
                           variant="ghost"
+                          disabled={savingName}
                           onClick={cancelEditName}
                           className="size-10 rounded-full text-slate-400 hover:bg-white/5 hover:text-white"
                           aria-label="Cancel"
@@ -435,21 +444,40 @@ export default function ProfilePage() {
           )}
         </section>
 
+        <ProfilePaymentMethodSection />
+
         <section className="grid gap-4 lg:grid-cols-2">
           <ProfileSelectSetting
             icon={<Globe className="size-7" aria-hidden />}
             title="Language"
             value={language}
-            displayValue={optionLabel(LANGUAGE_OPTIONS, language)}
-            onValueChange={onLanguageChange}
+            displayValue={
+              language
+                ? optionLabel(LANGUAGE_OPTIONS, language)
+                : "Select language"
+            }
+            placeholder="Select language"
+            disabled={savingLanguage || loading || !profile}
+            onValueChange={(value) => void onLanguageChange(value)}
             options={LANGUAGE_OPTIONS}
           />
           <ProfileSelectSetting
             icon={<MapPin className="size-7" aria-hidden />}
             title="Market"
             value={market}
-            displayValue={optionLabel(MARKET_OPTIONS, market)}
-            onValueChange={onMarketChange}
+            displayValue={
+              market
+                ? optionLabel(MARKET_OPTIONS, market)
+                : profile?.market
+                  ? profile.market
+                  : "Select market"
+            }
+            placeholder="Select market"
+            disabled={
+              savingMarket || loading || !profile || marketLocked
+            }
+            locked={marketLocked}
+            onValueChange={(value) => void onMarketChange(value)}
             options={MARKET_OPTIONS}
           />
           <ProfileAction
@@ -472,6 +500,9 @@ function ProfileSelectSetting({
   title,
   value,
   displayValue,
+  placeholder,
+  disabled,
+  locked,
   onValueChange,
   options,
 }: Readonly<{
@@ -479,6 +510,9 @@ function ProfileSelectSetting({
   title: string;
   value: string;
   displayValue: string;
+  placeholder?: string;
+  disabled?: boolean;
+  locked?: boolean;
   onValueChange: (value: string) => void;
   options: readonly { value: string; label: string }[];
 }>) {
@@ -489,14 +523,21 @@ function ProfileSelectSetting({
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-xl font-semibold text-white">{title}</p>
-        <p className="mt-1 truncate text-sm text-slate-500">{displayValue}</p>
+        <p className="mt-1 truncate text-sm text-slate-500">
+          {displayValue}
+          {locked ? " · Locked" : ""}
+        </p>
       </div>
-      <Select value={value} onValueChange={onValueChange}>
+      <Select
+        value={value || undefined}
+        onValueChange={onValueChange}
+        disabled={disabled}
+      >
         <SelectTrigger
           aria-label={title}
-          className="h-10 w-[9.5rem] shrink-0 rounded-2xl border-white/10 bg-slate-900/80 px-3 text-sm text-white hover:bg-slate-900 dark:bg-slate-900/80 dark:hover:bg-slate-900"
+          className="h-10 w-[10.5rem] shrink-0 rounded-2xl border-white/10 bg-slate-900/80 px-3 text-sm text-white hover:bg-slate-900 disabled:opacity-60 dark:bg-slate-900/80 dark:hover:bg-slate-900"
         >
-          <SelectValue />
+          <SelectValue placeholder={placeholder ?? "Select"} />
         </SelectTrigger>
         <SelectContent className="rounded-2xl border-white/10 bg-slate-950 text-slate-100">
           {options.map((option) => (

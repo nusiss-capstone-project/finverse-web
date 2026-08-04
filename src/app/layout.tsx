@@ -34,9 +34,6 @@ export default function RootLayout({
     /\/$/,
     "",
   );
-  const identityOrigin = (
-    process.env.NEXT_PUBLIC_IDENTITY_API_BASE_URL ?? apiOrigin
-  ).replace(/\/$/, "");
 
   return (
     <html
@@ -48,7 +45,7 @@ export default function RootLayout({
           <script
             suppressHydrationWarning
             dangerouslySetInnerHTML={{
-              __html: `window.__CAMPAIGN_CENTER_API_ORIGIN__=${JSON.stringify(apiOrigin)};window.__IDENTITY_API_ORIGIN__=${JSON.stringify(identityOrigin)};`,
+              __html: `window.__CAMPAIGN_CENTER_API_ORIGIN__=${JSON.stringify(apiOrigin)};`,
             }}
           />
           <AuthHeader />
