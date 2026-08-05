@@ -248,7 +248,12 @@ export function normalizeOrder(raw: unknown): Order | null {
 
 function normalizeOrderList(raw: unknown): OrderListResult {
   const o = asRecord(raw);
-  const itemsRaw = Array.isArray(o?.items) ? o.items : Array.isArray(raw) ? raw : [];
+  let itemsRaw: unknown[] = [];
+  if (Array.isArray(o?.items)) {
+    itemsRaw = o.items;
+  } else if (Array.isArray(raw)) {
+    itemsRaw = raw;
+  }
   const items = itemsRaw
     .map(normalizeOrder)
     .filter((item): item is Order => item != null);

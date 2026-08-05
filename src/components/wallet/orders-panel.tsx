@@ -50,7 +50,9 @@ type OrdersPanelProps = {
   highlightOrderId?: string | null;
 };
 
-export function OrdersPanel({ highlightOrderId }: OrdersPanelProps) {
+export function OrdersPanel({
+  highlightOrderId,
+}: Readonly<OrdersPanelProps>) {
   const [filter, setFilter] = useState<OrderFilter>("all");
   const [orders, setOrders] = useState<Order[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -158,44 +160,15 @@ export function OrdersPanel({ highlightOrderId }: OrdersPanelProps) {
           </div>
         ) : null}
 
-        {loading ? (
-          <OrdersSkeleton />
-        ) : orders.length === 0 ? (
-          <p className="rounded-[2rem] border border-white/10 bg-slate-950/60 p-8 text-center text-sm text-slate-500">
-            No orders found.
-          </p>
-        ) : (
-          <>
-            <ul className="grid gap-3">
-              {orders.map((order) => (
-                <OrderListItem
-                  key={order.orderId}
-                  order={order}
-                  highlighted={order.orderId === highlightOrderId}
-                  onSelect={() => void openDetail(order.orderId)}
-                />
-              ))}
-            </ul>
-            {nextCursor ? (
-              <Button
-                type="button"
-                variant="outline"
-                disabled={loadingMore}
-                onClick={() => void loadMore()}
-                className="mx-auto w-full max-w-xs rounded-2xl border-white/10 text-white hover:bg-white/5 sm:w-auto"
-              >
-                {loadingMore ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                    Loading…
-                  </>
-                ) : (
-                  "Load More"
-                )}
-              </Button>
-            ) : null}
-          </>
-        )}
+        <OrdersListBody
+          loading={loading}
+          orders={orders}
+          highlightOrderId={highlightOrderId}
+          nextCursor={nextCursor}
+          loadingMore={loadingMore}
+          onSelectOrder={(orderId) => void openDetail(orderId)}
+          onLoadMore={() => void loadMore()}
+        />
       </div>
 
       <OrderDetailDialog
@@ -204,6 +177,69 @@ export function OrdersPanel({ highlightOrderId }: OrdersPanelProps) {
         order={detailOrder}
         loading={detailLoading}
       />
+    </>
+  );
+}
+
+function OrdersListBody({
+  loading,
+  orders,
+  highlightOrderId,
+  nextCursor,
+  loadingMore,
+  onSelectOrder,
+  onLoadMore,
+}: Readonly<{
+  loading: boolean;
+  orders: Order[];
+  highlightOrderId?: string | null;
+  nextCursor: string | null;
+  loadingMore: boolean;
+  onSelectOrder: (orderId: string) => void;
+  onLoadMore: () => void;
+}>) {
+  if (loading) {
+    return <OrdersSkeleton />;
+  }
+
+  if (orders.length === 0) {
+    return (
+      <p className="rounded-[2rem] border border-white/10 bg-slate-950/60 p-8 text-center text-sm text-slate-500">
+        No orders found.
+      </p>
+    );
+  }
+
+  return (
+    <>
+      <ul className="grid gap-3">
+        {orders.map((order) => (
+          <OrderListItem
+            key={order.orderId}
+            order={order}
+            highlighted={order.orderId === highlightOrderId}
+            onSelect={() => onSelectOrder(order.orderId)}
+          />
+        ))}
+      </ul>
+      {nextCursor ? (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={loadingMore}
+          onClick={onLoadMore}
+          className="mx-auto w-full max-w-xs rounded-2xl border-white/10 text-white hover:bg-white/5 sm:w-auto"
+        >
+          {loadingMore ? (
+            <>
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+              Loading…
+            </>
+          ) : (
+            "Load More"
+          )}
+        </Button>
+      ) : null}
     </>
   );
 }
@@ -292,55 +328,62 @@ function OrderDetailDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {loading ? (
-          <div className="flex items-center gap-2 py-6 text-sm text-slate-500">
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-            Loading…
-          </div>
-        ) : order ? (
-          <div className="grid gap-3 text-sm">
-            <DetailRow label="Status">
-              <OrderStatusBadge status={order.status} />
-            </DetailRow>
-            <DetailRow
-              label="Order number"
-              value={order.orderNo}
-            />
-            <DetailRow
-              label="Asset"
-              value={
-                order.asset
-                  ? `${order.asset.name} (${order.asset.symbol})`
-                  : order.assetId
-              }
-            />
-            <DetailRow
-              label="Quantity"
-              value={formatAssetQuantity(order.quantity)}
-            />
-            <DetailRow
-              label="Unit price"
-              value={formatAssetMoney(order.unitPrice, order.payCurrency)}
-            />
-            <DetailRow
-              label="Paid"
-              value={formatAssetMoney(order.payAmount, order.payCurrency)}
-              highlight
-            />
-            <DetailRow
-              label="Created"
-              value={formatUnixTime(order.createdAt)}
-            />
-            <DetailRow
-              label="Status"
-              value={orderStatusLabel(order.status)}
-            />
-          </div>
-        ) : (
-          <p className="text-sm text-slate-500">Order not found.</p>
-        )}
+        <OrderDetailBody loading={loading} order={order} />
       </DialogContent>
     </Dialog>
+  );
+}
+
+function OrderDetailBody({
+  loading,
+  order,
+}: Readonly<{
+  loading: boolean;
+  order: Order | null;
+}>) {
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 py-6 text-sm text-slate-500">
+        <Loader2 className="size-4 animate-spin" aria-hidden />
+        Loading…
+      </div>
+    );
+  }
+
+  if (!order) {
+    return <p className="text-sm text-slate-500">Order not found.</p>;
+  }
+
+  return (
+    <div className="grid gap-3 text-sm">
+      <DetailRow label="Status">
+        <OrderStatusBadge status={order.status} />
+      </DetailRow>
+      <DetailRow label="Order number" value={order.orderNo} />
+      <DetailRow
+        label="Asset"
+        value={
+          order.asset
+            ? `${order.asset.name} (${order.asset.symbol})`
+            : order.assetId
+        }
+      />
+      <DetailRow
+        label="Quantity"
+        value={formatAssetQuantity(order.quantity)}
+      />
+      <DetailRow
+        label="Unit price"
+        value={formatAssetMoney(order.unitPrice, order.payCurrency)}
+      />
+      <DetailRow
+        label="Paid"
+        value={formatAssetMoney(order.payAmount, order.payCurrency)}
+        highlight
+      />
+      <DetailRow label="Created" value={formatUnixTime(order.createdAt)} />
+      <DetailRow label="Status" value={orderStatusLabel(order.status)} />
+    </div>
   );
 }
 

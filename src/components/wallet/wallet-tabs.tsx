@@ -9,7 +9,7 @@ type WalletTabsProps = {
   onChange: (tab: WalletTab) => void;
 };
 
-export function WalletTabs({ value, onChange }: WalletTabsProps) {
+export function WalletTabs({ value, onChange }: Readonly<WalletTabsProps>) {
   return (
     <Tabs
       value={value}

@@ -23,7 +23,16 @@ export function isPositiveDecimal(s: string): boolean {
 export function isValidDecimalInput(s: string): boolean {
   const trimmed = s.trim();
   if (!trimmed || trimmed === ".") return false;
-  return /^\d*\.?\d*$/.test(trimmed);
+  let seenDot = false;
+  for (const ch of trimmed) {
+    if (ch === ".") {
+      if (seenDot) return false;
+      seenDot = true;
+      continue;
+    }
+    if (ch < "0" || ch > "9") return false;
+  }
+  return true;
 }
 
 export function sumDecimalAmounts(amounts: string[]): string {

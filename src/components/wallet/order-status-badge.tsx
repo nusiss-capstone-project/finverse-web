@@ -7,7 +7,9 @@ import {
   type OrderStatus,
 } from "@/lib/web/asset-api";
 
-export function OrderStatusBadge({ status }: { status: OrderStatus }) {
+export function OrderStatusBadge({
+  status,
+}: Readonly<{ status: OrderStatus }>) {
   const label = orderStatusLabel(status);
   const success = status === "pay_succeed";
   const pending = status === "pending";

@@ -29,7 +29,10 @@ type MyAssetsPanelProps = {
   onSwitchToOrders: (orderId?: string) => void;
 };
 
-export function MyAssetsPanel({ lang, onSwitchToOrders }: MyAssetsPanelProps) {
+export function MyAssetsPanel({
+  lang,
+  onSwitchToOrders,
+}: Readonly<MyAssetsPanelProps>) {
   const [rows, setRows] = useState<AssetRow[]>([]);
   const [totalValue, setTotalValue] = useState<string>("0.00");
   const [totalCurrency, setTotalCurrency] = useState(ASSET_CURRENCY);
