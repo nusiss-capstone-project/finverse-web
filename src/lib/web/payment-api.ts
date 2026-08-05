@@ -96,15 +96,24 @@ export function normalizePaymentMethod(raw: unknown): PaymentMethod | null {
 
 /**
  * GET `/payment-ms/v1/web/payment-methods`
- * Returns the first bound method, or null when the list is empty.
  */
-export async function fetchPrimaryPaymentMethod(): Promise<PaymentMethod | null> {
+export async function fetchPaymentMethods(): Promise<PaymentMethod[]> {
   const data = await fetchPaymentEnvelope<unknown>(
     "/payment-ms/v1/web/payment-methods",
     { method: "GET" },
   );
-  if (!Array.isArray(data) || data.length === 0) return null;
-  return normalizePaymentMethod(data[0]);
+  if (!Array.isArray(data)) return [];
+  return data
+    .map(normalizePaymentMethod)
+    .filter((m): m is PaymentMethod => m != null);
+}
+
+/**
+ * Returns the first bound method, or null when the list is empty.
+ */
+export async function fetchPrimaryPaymentMethod(): Promise<PaymentMethod | null> {
+  const methods = await fetchPaymentMethods();
+  return methods[0] ?? null;
 }
 
 /**
