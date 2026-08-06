@@ -76,6 +76,47 @@ export type OrderListResult = {
   nextCursor: string | null;
 };
 
+export type FiatAccount = {
+  accountId: string;
+  balance: string;
+  currency: string;
+  updatedAt: number;
+};
+
+export type FiatTxnStatus = "PENDING" | "SUCCEEDED" | "FAILED";
+
+export type FiatTransaction = {
+  transactionId: string;
+  transactionNo: string;
+  accountId: string;
+  amount: string;
+  currency: string;
+  status: FiatTxnStatus;
+  failureReason: string;
+  paymentMethodId: string;
+  transactionType: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type LedgerBusinessType = "DEPOSIT" | "PURCHASE" | "REWARD";
+
+export type LedgerEntry = {
+  ledgerId: string;
+  ledgerNo: string;
+  assetCode: string;
+  changeAmount: string;
+  balanceAfter: string;
+  businessType: LedgerBusinessType | string;
+  businessId: string;
+  createdAt: number;
+};
+
+export type LedgerListResult = {
+  items: LedgerEntry[];
+  nextCursor: string | null;
+};
+
 type AssetEnvelope<T> = {
   code?: number;
   err_msg?: string;
@@ -349,6 +390,170 @@ export async function fetchOrderDetail(orderId: string): Promise<Order> {
   const order = normalizeOrder(data);
   if (!order) throw new Error("Invalid order detail response.");
   return order;
+}
+
+function normalizeFiatTxnStatus(raw: string): FiatTxnStatus {
+  const s = raw.trim().toUpperCase();
+  if (s === "SUCCEEDED" || s === "FAILED" || s === "PENDING") return s;
+  return "PENDING";
+}
+
+export function normalizeFiatAccount(raw: unknown): FiatAccount | null {
+  const o = asRecord(raw);
+  if (!o) return null;
+  const accountId = pickStr(o, ["account_id", "accountId"]);
+  const currency = pickStr(o, ["currency"]);
+  if (!accountId && !currency) return null;
+  return {
+    accountId,
+    balance: pickStr(o, ["balance"]) || "0",
+    currency: currency || ASSET_CURRENCY,
+    updatedAt: pickNum(o, ["updated_at", "updatedAt"]),
+  };
+}
+
+export function normalizeFiatTransaction(raw: unknown): FiatTransaction | null {
+  const o = asRecord(raw);
+  if (!o) return null;
+  const transactionId = pickStr(o, [
+    "transaction_id",
+    "transactionId",
+    "id",
+  ]);
+  if (!transactionId) return null;
+  return {
+    transactionId,
+    transactionNo:
+      pickStr(o, ["transaction_no", "transactionNo"]) || transactionId,
+    accountId: pickStr(o, ["account_id", "accountId"]),
+    amount: pickStr(o, ["amount"]) || "0",
+    currency: pickStr(o, ["currency"]) || ASSET_CURRENCY,
+    status: normalizeFiatTxnStatus(pickStr(o, ["status"])),
+    failureReason: pickStr(o, ["failure_reason", "failureReason"]),
+    paymentMethodId: pickStr(o, ["payment_method_id", "paymentMethodId"]),
+    transactionType: pickStr(o, ["transaction_type", "transactionType"]),
+    createdAt: pickNum(o, ["created_at", "createdAt"]),
+    updatedAt: pickNum(o, ["updated_at", "updatedAt"]),
+  };
+}
+
+export function normalizeLedgerEntry(raw: unknown): LedgerEntry | null {
+  const o = asRecord(raw);
+  if (!o) return null;
+  const ledgerId = pickStr(o, ["ledger_id", "ledgerId", "id"]);
+  if (!ledgerId) return null;
+  return {
+    ledgerId,
+    ledgerNo: pickStr(o, ["ledger_no", "ledgerNo"]) || ledgerId,
+    assetCode: pickStr(o, ["asset_code", "assetCode"]),
+    changeAmount: pickStr(o, ["change_amount", "changeAmount"]) || "0",
+    balanceAfter: pickStr(o, ["balance_after", "balanceAfter"]) || "0",
+    businessType: pickStr(o, ["business_type", "businessType"]),
+    businessId: pickStr(o, ["business_id", "businessId"]),
+    createdAt: pickNum(o, ["created_at", "createdAt"]),
+  };
+}
+
+function normalizeLedgerList(raw: unknown): LedgerListResult {
+  const o = asRecord(raw);
+  let itemsRaw: unknown[] = [];
+  if (Array.isArray(o?.items)) {
+    itemsRaw = o.items;
+  } else if (Array.isArray(raw)) {
+    itemsRaw = raw;
+  }
+  const items = itemsRaw
+    .map(normalizeLedgerEntry)
+    .filter((item): item is LedgerEntry => item != null);
+  const nextCursor = pickStr(o, ["next_cursor", "nextCursor"]) || null;
+  return { items, nextCursor: nextCursor || null };
+}
+
+export async function fetchFiatAccounts(): Promise<FiatAccount[]> {
+  const data = await fetchAssetEnvelope<unknown>(
+    "/asset-ms/v1/web/fiat-accounts",
+    { method: "GET" },
+  );
+  const o = asRecord(data);
+  let itemsRaw: unknown[] = [];
+  if (Array.isArray(o?.items)) {
+    itemsRaw = o.items;
+  } else if (Array.isArray(data)) {
+    itemsRaw = data;
+  }
+  return itemsRaw
+    .map(normalizeFiatAccount)
+    .filter((item): item is FiatAccount => item != null);
+}
+
+export async function createDeposit(input: {
+  amount: string;
+  currency: string;
+  paymentMethodId: number;
+  idempotentKey: string;
+}): Promise<FiatTransaction> {
+  const data = await fetchAssetEnvelope<unknown>("/asset-ms/v1/web/deposit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      amount: input.amount,
+      currency: input.currency,
+      payment_method_id: input.paymentMethodId,
+      idempotent_key: input.idempotentKey,
+    }),
+  });
+  const txn = normalizeFiatTransaction(data);
+  if (!txn) throw new Error("Invalid deposit response.");
+  return txn;
+}
+
+export async function fetchLedgers(params?: {
+  businessType?: LedgerBusinessType;
+  cursor?: string;
+  limit?: number;
+  assetCode?: string;
+}): Promise<LedgerListResult> {
+  const search = new URLSearchParams();
+  if (params?.businessType) search.set("business_type", params.businessType);
+  if (params?.cursor) search.set("cursor", params.cursor);
+  if (params?.limit != null) search.set("limit", String(params.limit));
+  if (params?.assetCode) search.set("asset_code", params.assetCode);
+  const qs = search.toString();
+  const path = qs
+    ? `/asset-ms/v1/web/ledgers?${qs}`
+    : "/asset-ms/v1/web/ledgers";
+  const data = await fetchAssetEnvelope<unknown>(path, { method: "GET" });
+  return normalizeLedgerList(data);
+}
+
+export function ledgerBusinessTypeLabel(type: string): string {
+  switch (type.trim().toUpperCase()) {
+    case "DEPOSIT":
+      return "Deposit";
+    case "PURCHASE":
+      return "Purchase";
+    case "REWARD":
+      return "Reward";
+    default:
+      return type || "Transaction";
+  }
+}
+
+export function formatChangeAmount(amount: string, assetCode: string): string {
+  const code = assetCode.trim().toUpperCase();
+  const trimmed = amount.trim();
+  if (!trimmed) return code ? `0 ${code}` : "0";
+  const negative = trimmed.startsWith("-");
+  const absolute = negative ? trimmed.slice(1) : trimmed;
+  const n = Number(absolute);
+  const formatted = Number.isFinite(n)
+    ? new Intl.NumberFormat(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 8,
+      }).format(n)
+    : absolute;
+  const signed = negative ? `-${formatted}` : formatted;
+  return code ? `${signed} ${code}` : signed;
 }
 
 export function formatAssetMoney(amount: string, currency = ASSET_CURRENCY): string {

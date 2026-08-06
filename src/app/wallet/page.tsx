@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { MyAssetsPanel } from "@/components/wallet/my-assets-panel";
 import { OrdersPanel } from "@/components/wallet/orders-panel";
+import { TransactionsPanel } from "@/components/wallet/transactions-panel";
 import { WalletTabs, type WalletTab } from "@/components/wallet/wallet-tabs";
 import {
   UserShell,
@@ -30,7 +31,7 @@ export default function WalletPage() {
             Wallet
           </h1>
           <p className="mt-2 text-lg text-slate-400">
-            Manage your assets and purchase history.
+            Manage balances, transactions, and purchase history.
           </p>
         </div>
 
@@ -46,9 +47,11 @@ export default function WalletPage() {
 
         {tab === "assets" ? (
           <MyAssetsPanel lang={lang} onSwitchToOrders={switchToOrders} />
-        ) : (
+        ) : null}
+        {tab === "transactions" ? <TransactionsPanel /> : null}
+        {tab === "orders" ? (
           <OrdersPanel highlightOrderId={highlightOrderId} />
-        )}
+        ) : null}
       </div>
     </UserShell>
   );

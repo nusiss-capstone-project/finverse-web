@@ -1,25 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Eye, EyeOff, TrendingUp } from "lucide-react";
+import { Eye, EyeOff, TrendingUp, Wallet } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { BuyAssetFlow } from "@/components/wallet/buy-asset-flow";
-import { OrderStatusBadge } from "@/components/wallet/order-status-badge";
+import { DepositDialog } from "@/components/wallet/deposit-dialog";
 import {
   ASSET_CURRENCY,
   assetApiErrorMessage,
   fetchAssets,
+  fetchFiatAccounts,
   fetchHoldings,
-  fetchOrders,
   formatAssetMoney,
   formatAssetQuantity,
   mergeAssetsWithHoldings,
   type Asset,
   type AssetRow,
-  type Order,
+  type FiatAccount,
 } from "@/lib/web/asset-api";
-import { sumDecimalAmounts } from "@/lib/web/money";
+import { sumAmountsByCurrency } from "@/lib/web/money";
 
 const REVEAL_AMOUNTS_KEY = "finverse.my-assets.reveal-amounts";
 const MASKED_AMOUNT = "••••••";
@@ -34,13 +34,18 @@ export function MyAssetsPanel({
   onSwitchToOrders,
 }: Readonly<MyAssetsPanelProps>) {
   const [rows, setRows] = useState<AssetRow[]>([]);
-  const [totalValue, setTotalValue] = useState<string>("0.00");
-  const [totalCurrency, setTotalCurrency] = useState(ASSET_CURRENCY);
-  const [recentOrder, setRecentOrder] = useState<Order | null>(null);
+  const [totalsByCurrency, setTotalsByCurrency] = useState<
+    Array<{ currency: string; amount: string }>
+  >([]);
+  const [fiatAccounts, setFiatAccounts] = useState<FiatAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [buyAsset, setBuyAsset] = useState<Asset | null>(null);
   const [buyOpen, setBuyOpen] = useState(false);
+  const [depositAccount, setDepositAccount] = useState<FiatAccount | null>(
+    null,
+  );
+  const [depositOpen, setDepositOpen] = useState(false);
   const [revealAmounts, setRevealAmounts] = useState(false);
 
   useEffect(() => {
@@ -67,25 +72,56 @@ export function MyAssetsPanel({
     setLoading(true);
     setError(null);
     try {
-      const [assets, holdings, ordersResult] = await Promise.all([
+      const [assets, holdings, fiat] = await Promise.all([
         fetchAssets(),
         fetchHoldings(),
-        fetchOrders({ limit: 1 }),
+        fetchFiatAccounts(),
       ]);
       const merged = mergeAssetsWithHoldings(assets, holdings);
       setRows(merged);
-      setRecentOrder(ordersResult.items[0] ?? null);
+      setFiatAccounts(fiat);
 
-      const amounts = holdings.map((h) => h.valuation.amount);
-      setTotalValue(sumDecimalAmounts(amounts));
-      const firstCurrency = holdings[0]?.valuation.currency;
-      setTotalCurrency(firstCurrency || ASSET_CURRENCY);
+      const entries = [
+        ...holdings.map((h) => ({
+          amount: h.valuation.amount,
+          currency: h.valuation.currency || ASSET_CURRENCY,
+        })),
+        ...fiat.map((a) => ({
+          amount: a.balance,
+          currency: a.currency || ASSET_CURRENCY,
+        })),
+      ];
+      setTotalsByCurrency(sumAmountsByCurrency(entries));
     } catch (e) {
       setRows([]);
-      setRecentOrder(null);
+      setFiatAccounts([]);
+      setTotalsByCurrency([]);
       setError(assetApiErrorMessage(e));
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const refreshFiatAccounts = useCallback(async () => {
+    try {
+      const [holdings, fiat] = await Promise.all([
+        fetchHoldings(),
+        fetchFiatAccounts(),
+      ]);
+      setFiatAccounts(fiat);
+      const entries = [
+        ...holdings.map((h) => ({
+          amount: h.valuation.amount,
+          currency: h.valuation.currency || ASSET_CURRENCY,
+        })),
+        ...fiat.map((a) => ({
+          amount: a.balance,
+          currency: a.currency || ASSET_CURRENCY,
+        })),
+      ];
+      setTotalsByCurrency(sumAmountsByCurrency(entries));
+    } catch {
+      // keep current UI on soft refresh failure
     }
   }, []);
 
@@ -96,6 +132,11 @@ export function MyAssetsPanel({
   const openBuy = useCallback((asset: Asset) => {
     setBuyAsset(asset);
     setBuyOpen(true);
+  }, []);
+
+  const openDeposit = useCallback((account: FiatAccount) => {
+    setDepositAccount(account);
+    setDepositOpen(true);
   }, []);
 
   if (loading) {
@@ -124,22 +165,20 @@ export function MyAssetsPanel({
     <>
       <div className="flex flex-col gap-6">
         <TotalValuationCard
-          amount={totalValue}
-          currency={totalCurrency}
+          totals={totalsByCurrency}
           reveal={revealAmounts}
           onToggleReveal={toggleRevealAmounts}
         />
 
-        {recentOrder ? (
-          <RecentPurchaseCard
-            order={recentOrder}
-            onViewOrder={() => onSwitchToOrders(recentOrder.orderId)}
-          />
-        ) : null}
+        <FiatAccountsSection
+          accounts={fiatAccounts}
+          revealAmounts={revealAmounts}
+          onDeposit={openDeposit}
+        />
 
         <section>
           <div className="mb-4">
-            <h2 className="text-xl font-semibold text-white">Assets</h2>
+            <h2 className="text-xl font-semibold text-white">Crypto Assets</h2>
             <p className="mt-1 text-sm text-slate-500">
               Browse and purchase available assets
             </p>
@@ -175,21 +214,30 @@ export function MyAssetsPanel({
         onViewOrder={(orderId) => onSwitchToOrders(orderId)}
         onPurchaseComplete={() => void load()}
       />
+
+      <DepositDialog
+        open={depositOpen}
+        account={depositAccount}
+        lang={lang}
+        onOpenChange={setDepositOpen}
+        onCompleted={() => void refreshFiatAccounts()}
+      />
     </>
   );
 }
 
 function TotalValuationCard({
-  amount,
-  currency,
+  totals,
   reveal,
   onToggleReveal,
 }: Readonly<{
-  amount: string;
-  currency: string;
+  totals: Array<{ currency: string; amount: string }>;
   reveal: boolean;
   onToggleReveal: () => void;
 }>) {
+  const displayTotals =
+    totals.length > 0 ? totals : [{ currency: ASSET_CURRENCY, amount: "0.00" }];
+
   return (
     <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-slate-900 via-slate-950 to-emerald-950/45 p-6 shadow-2xl shadow-emerald-950/20 sm:p-8">
       <div
@@ -222,51 +270,78 @@ function TotalValuationCard({
               </span>
             </Button>
           </div>
-          <p className="mt-3 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-            {reveal ? formatAssetMoney(amount, currency) : MASKED_AMOUNT}
-          </p>
+          <ul className="mt-3 grid gap-2">
+            {displayTotals.map((row) => (
+              <li
+                key={row.currency}
+                className="text-3xl font-semibold tracking-tight text-white sm:text-4xl"
+              >
+                {reveal
+                  ? formatAssetMoney(row.amount, row.currency)
+                  : `${MASKED_AMOUNT} ${row.currency}`}
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </div>
   );
 }
 
-function RecentPurchaseCard({
-  order,
-  onViewOrder,
-}: Readonly<{ order: Order; onViewOrder: () => void }>) {
-  const assetName = order.asset?.name || "Asset";
-  const symbol = order.asset?.symbol || "";
-
+function FiatAccountsSection({
+  accounts,
+  revealAmounts,
+  onDeposit,
+}: Readonly<{
+  accounts: FiatAccount[];
+  revealAmounts: boolean;
+  onDeposit: (account: FiatAccount) => void;
+}>) {
   return (
-    <div className="rounded-[2rem] border border-white/10 bg-slate-950/60 p-5 sm:p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-slate-500">
-            Recent Asset Purchase
-          </p>
-          <p className="mt-2 text-lg font-semibold text-white">
-            {formatAssetQuantity(order.quantity)} {symbol}
-          </p>
-          <p className="mt-1 text-sm text-slate-400">{assetName}</p>
-        </div>
-        <OrderStatusBadge status={order.status} />
-      </div>
-      <div className="mt-4 flex items-center justify-between">
-        <p className="text-sm font-semibold text-emerald-400">
-          {formatAssetMoney(order.payAmount, order.payCurrency)}
+    <section>
+      <div className="mb-4">
+        <h2 className="text-xl font-semibold text-white">Fiat Account</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Cash balances available for your market
         </p>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onViewOrder}
-          className="text-emerald-400 hover:text-emerald-300"
-        >
-          View order
-        </Button>
       </div>
-    </div>
+
+      {accounts.length === 0 ? (
+        <p className="rounded-[2rem] border border-white/10 bg-slate-950/60 p-8 text-center text-sm text-slate-500">
+          No fiat accounts available.
+        </p>
+      ) : (
+        <ul className="grid gap-3">
+          {accounts.map((account) => (
+            <li
+              key={account.currency}
+              className="flex items-center gap-4 rounded-[2rem] border border-white/10 bg-slate-950/60 p-4 sm:p-5"
+            >
+              <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/20">
+                <Wallet className="size-5" aria-hidden />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-base font-semibold text-white">
+                  {account.currency}
+                </p>
+                <p className="mt-1 text-sm text-emerald-400/90">
+                  {revealAmounts
+                    ? formatAssetMoney(account.balance, account.currency)
+                    : MASKED_AMOUNT}
+                </p>
+              </div>
+              <Button
+                type="button"
+                onClick={() => onDeposit(account)}
+                className="h-10 shrink-0 rounded-2xl bg-emerald-500 px-5 text-slate-950 hover:bg-emerald-400"
+              >
+                Deposit
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
