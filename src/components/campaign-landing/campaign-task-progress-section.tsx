@@ -16,7 +16,7 @@ function isCompletedStatus(status: string): boolean {
 function statusLabel(status: string): string {
   if (isCompletedStatus(status)) return "Complete";
   const key = normalizeStatusKey(status);
-  if (key === "in-progress" || key === "inprogress") return "InProgress";
+  if (key === "in-progress" || key === "inprogress") return "In progress";
   return status.trim() || "Unknown";
 }
 
@@ -83,7 +83,7 @@ export function CampaignTaskProgressSection({
                 ) : (
                   <span
                     className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-500/15 text-slate-500"
-                    aria-label="InProgress"
+                    aria-label="In progress"
                   >
                     <Circle className="size-5" aria-hidden />
                   </span>

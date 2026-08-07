@@ -145,14 +145,16 @@ async function fetchArrayPayload(url: string): Promise<unknown[]> {
   if (Array.isArray(body)) return body;
 
   const envelope = asRecord(body);
-  if (!envelope) return [];
+  if (!envelope) {
+    throw new Error("Invalid list response.");
+  }
   if (envelope.code != null && Number(envelope.code) !== 0) {
     throw new Error(
       pickStr(envelope, ["err_msg", "message"]) || "Request failed",
     );
   }
   if (Array.isArray(envelope.data)) return envelope.data;
-  return [];
+  throw new Error("Invalid list response.");
 }
 
 export async function fetchCampaignTasks(
