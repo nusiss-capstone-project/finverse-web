@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 
@@ -14,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { PaymentMethodPicker } from "@/components/wallet/payment-method-picker";
 import {
   assetApiErrorMessage,
   createOrder,
@@ -33,10 +33,8 @@ import {
 } from "@/lib/web/money";
 import {
   fetchPaymentMethods,
-  formatCardBrand,
   type PaymentMethod,
 } from "@/lib/web/payment-api";
-import { withLangParam } from "@/components/user/user-shell";
 
 const POLL_INTERVAL_MS = 2000;
 const POLL_TIMEOUT_MS = 30000;
@@ -691,65 +689,6 @@ function PurchaseReviewDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function PaymentMethodPicker({
-  pmLoading,
-  paymentMethods,
-  selectedPmId,
-  lang,
-  onSelectPm,
-}: Readonly<{
-  pmLoading: boolean;
-  paymentMethods: PaymentMethod[];
-  selectedPmId: number | null;
-  lang?: string;
-  onSelectPm: (id: number) => void;
-}>) {
-  if (pmLoading) {
-    return <p className="text-sm text-slate-500">Loading cards…</p>;
-  }
-
-  if (paymentMethods.length === 0) {
-    return (
-      <p className="text-sm text-slate-400">
-        No payment method on file.{" "}
-        <Link
-          href={withLangParam("/profile", lang)}
-          className="text-emerald-400 underline underline-offset-2"
-        >
-          Add Payment Method
-        </Link>
-      </p>
-    );
-  }
-
-  return (
-    <ul className="grid gap-2">
-      {paymentMethods.map((pm) => (
-        <li key={pm.id}>
-          <button
-            type="button"
-            onClick={() => onSelectPm(pm.id)}
-            className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
-              selectedPmId === pm.id
-                ? "border-emerald-500/50 bg-emerald-500/10"
-                : "border-white/10 bg-slate-900/50 hover:bg-white/5"
-            }`}
-          >
-            <p className="font-semibold text-white">
-              {formatCardBrand(pm.brand)}
-              {pm.last4 ? (
-                <span className="ml-2 font-mono text-slate-300">
-                  •••• {pm.last4}
-                </span>
-              ) : null}
-            </p>
-          </button>
-        </li>
-      ))}
-    </ul>
   );
 }
 

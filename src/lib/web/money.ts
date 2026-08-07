@@ -49,7 +49,7 @@ export function sumDecimalAmounts(amounts: string[]): string {
 export function sumAmountsByCurrency(
   entries: ReadonlyArray<{ amount: string; currency: string }>,
 ): Array<{ currency: string; amount: string }> {
-  const map = new Map();
+  const map = new Map<string, InstanceType<typeof Decimal>>();
   for (const entry of entries) {
     const currency = entry.currency.trim().toUpperCase() || "USD";
     const prev = map.get(currency) ?? new Decimal(0);
@@ -61,7 +61,7 @@ export function sumAmountsByCurrency(
   }
   return Array.from(map.entries())
     .map(([currency, amount]) => ({
-      currency: String(currency),
+      currency,
       amount: amount.toFixed(2),
     }))
     .sort((a, b) => a.currency.localeCompare(b.currency));

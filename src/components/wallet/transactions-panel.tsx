@@ -1,9 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Gift, Loader2 } from "lucide-react";
+import { Gift } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import {
+  WalletEmptyState,
+  WalletFilterChips,
+  WalletListError,
+  WalletListSkeleton,
+  WalletLoadMoreButton,
+} from "@/components/wallet/wallet-list-ui";
 import {
   assetApiErrorMessage,
   fetchLedgers,
@@ -89,74 +95,62 @@ export function TransactionsPanel() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap gap-2">
-        {FILTER_OPTIONS.map(({ value, label }) => (
-          <Button
-            key={value}
-            type="button"
-            variant={filter === value ? "default" : "outline"}
-            onClick={() => setFilter(value)}
-            className={
-              filter === value
-                ? "rounded-full bg-emerald-500 text-slate-950 hover:bg-emerald-400"
-                : "rounded-full border-white/10 bg-slate-950/60 text-slate-300 hover:bg-white/5"
-            }
-          >
-            {label}
-          </Button>
-        ))}
-      </div>
+      <WalletFilterChips
+        options={FILTER_OPTIONS}
+        value={filter}
+        onChange={setFilter}
+      />
 
       {error && !loading ? (
-        <div className="rounded-[2rem] border border-red-500/20 bg-red-950/40 p-6">
-          <p className="text-sm text-red-200" role="alert">
-            {error}
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void loadFirstPage(filter)}
-            className="mt-4 rounded-2xl border-white/10 text-white hover:bg-white/5"
-          >
-            Retry
-          </Button>
-        </div>
+        <WalletListError
+          message={error}
+          onRetry={() => void loadFirstPage(filter)}
+        />
       ) : null}
 
-      {loading ? (
-        <TransactionsSkeleton />
-      ) : items.length === 0 ? (
-        <p className="rounded-[2rem] border border-white/10 bg-slate-950/60 p-8 text-center text-sm text-slate-500">
-          No transactions found.
-        </p>
-      ) : (
-        <>
-          <ul className="grid gap-3">
-            {items.map((entry) => (
-              <LedgerListItem key={entry.ledgerId} entry={entry} />
-            ))}
-          </ul>
-          {nextCursor ? (
-            <Button
-              type="button"
-              variant="outline"
-              disabled={loadingMore}
-              onClick={() => void loadMore()}
-              className="mx-auto w-full max-w-xs rounded-2xl border-white/10 text-white hover:bg-white/5 sm:w-auto"
-            >
-              {loadingMore ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                  Loading…
-                </>
-              ) : (
-                "Load More"
-              )}
-            </Button>
-          ) : null}
-        </>
-      )}
+      <TransactionsListBody
+        loading={loading}
+        items={items}
+        nextCursor={nextCursor}
+        loadingMore={loadingMore}
+        onLoadMore={() => void loadMore()}
+      />
     </div>
+  );
+}
+
+function TransactionsListBody({
+  loading,
+  items,
+  nextCursor,
+  loadingMore,
+  onLoadMore,
+}: Readonly<{
+  loading: boolean;
+  items: LedgerEntry[];
+  nextCursor: string | null;
+  loadingMore: boolean;
+  onLoadMore: () => void;
+}>) {
+  if (loading) {
+    return <WalletListSkeleton />;
+  }
+
+  if (items.length === 0) {
+    return <WalletEmptyState message="No transactions found." />;
+  }
+
+  return (
+    <>
+      <ul className="grid gap-3">
+        {items.map((entry) => (
+          <LedgerListItem key={entry.ledgerId} entry={entry} />
+        ))}
+      </ul>
+      {nextCursor ? (
+        <WalletLoadMoreButton loading={loadingMore} onClick={onLoadMore} />
+      ) : null}
+    </>
   );
 }
 
@@ -210,18 +204,5 @@ function LedgerListItem({ entry }: Readonly<{ entry: LedgerEntry }>) {
         </p>
       </div>
     </li>
-  );
-}
-
-function TransactionsSkeleton() {
-  return (
-    <div className="grid gap-3">
-      {[1, 2, 3, 4].map((i) => (
-        <div
-          key={i}
-          className="h-24 animate-pulse rounded-[2rem] border border-white/10 bg-slate-950/60"
-        />
-      ))}
-    </div>
   );
 }

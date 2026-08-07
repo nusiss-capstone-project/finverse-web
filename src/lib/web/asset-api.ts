@@ -535,7 +535,7 @@ export function ledgerBusinessTypeLabel(type: string): string {
     case "REWARD":
       return "Reward";
     default:
-      return type || "Transaction";
+      return type.trim() || "Transaction";
   }
 }
 

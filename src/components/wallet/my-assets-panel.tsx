@@ -300,7 +300,7 @@ function FiatAccountsSection({
   return (
     <section>
       <div className="mb-4">
-        <h2 className="text-xl font-semibold text-white">Fiat Account</h2>
+        <h2 className="text-xl font-semibold text-white">Fiat Accounts</h2>
         <p className="mt-1 text-sm text-slate-500">
           Cash balances available for your market
         </p>
