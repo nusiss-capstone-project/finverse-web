@@ -48,7 +48,7 @@
     "fast-uri": "3.1.5",
     "hono": "4.12.34",
     "ip-address": "10.4.0",
-    "js-yaml": "4.3.0",
+    "js-yaml": "4.3.1",
     "minimatch": "10.2.5",
     "nanoid": "5.1.16",
     "postcss": "8.5.23",
