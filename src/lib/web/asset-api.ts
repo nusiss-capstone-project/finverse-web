@@ -107,7 +107,7 @@ export type LedgerEntry = {
   assetCode: string;
   changeAmount: string;
   balanceAfter: string;
-  businessType: LedgerBusinessType | string;
+  businessType: string;
   businessId: string;
   createdAt: number;
 };
