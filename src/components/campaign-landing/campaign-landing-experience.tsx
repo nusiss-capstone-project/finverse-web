@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { CampaignDescriptionSection } from "@/components/campaign-landing/campaign-description-section";
 import { CampaignFaqSection } from "@/components/campaign-landing/campaign-faq-section";
+import { CampaignJoinedProgress } from "@/components/campaign-landing/campaign-joined-progress";
 import { CampaignLandingHero } from "@/components/campaign-landing/campaign-landing-hero";
 import { CampaignStepsSection } from "@/components/campaign-landing/campaign-steps-section";
 import { CampaignTermsSection } from "@/components/campaign-landing/campaign-terms-section";
@@ -160,6 +161,12 @@ export function CampaignLandingExperience() {
               joinError={joinError}
               onJoin={() => void handleJoin()}
             />
+            {model.joined ? (
+              <CampaignJoinedProgress
+                campaignId={campaignId}
+                joined={model.joined}
+              />
+            ) : null}
             <CampaignDescriptionSection description={model.description} />
             <CampaignStepsSection steps={model.steps} />
             <CampaignTermsSection terms={model.terms} />

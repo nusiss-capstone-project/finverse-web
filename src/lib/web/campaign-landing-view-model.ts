@@ -62,7 +62,13 @@ export function buildCampaignLandingViewModel(
   const terms = pickStr(landing, ["terms"]);
   const steps = normalizeRepeatableItems(landing?.steps);
   const faq = normalizeRepeatableItems(landing?.faq);
-  const joined = pickBool(root, ["joined"]);
+  const joined = pickBool(root, [
+    "joined",
+    "hasJoined",
+    "has_joined",
+    "isJoined",
+    "is_joined",
+  ]);
 
   return {
     campaignId,
