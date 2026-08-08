@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 
 import { CampaignRewardHistorySection } from "@/components/campaign-landing/campaign-reward-history-section";
 import { CampaignTaskProgressSection } from "@/components/campaign-landing/campaign-task-progress-section";
@@ -11,6 +11,25 @@ import {
   type CampaignRewardRecord,
   type CampaignTask,
 } from "@/lib/web/user-campaign-api";
+
+function settledErrorMessage(reason: unknown, fallback: string): string {
+  return reason instanceof Error ? reason.message : fallback;
+}
+
+function applySettledList<T>(
+  result: PromiseSettledResult<T[]>,
+  setItems: Dispatch<SetStateAction<T[]>>,
+  setError: Dispatch<SetStateAction<string | null>>,
+  fallback: string,
+) {
+  if (result.status === "fulfilled") {
+    setItems(result.value);
+    setError(null);
+    return;
+  }
+  setItems([]);
+  setError(settledErrorMessage(result.reason, fallback));
+}
 
 export function CampaignJoinedProgress({
   campaignId,
@@ -50,36 +69,26 @@ export function CampaignJoinedProgress({
           fetchCampaignTasks(rules.taskGroupId),
           fetchCampaignRewards(rules.projectId),
         ]);
-
         if (cancelled) return;
 
-        if (taskResult.status === "fulfilled") {
-          setTasks(taskResult.value);
-          setTasksError(null);
-        } else {
-          setTasks([]);
-          setTasksError(
-            taskResult.reason instanceof Error
-              ? taskResult.reason.message
-              : "Could not load tasks.",
-          );
-        }
-
-        if (rewardResult.status === "fulfilled") {
-          setRewards(rewardResult.value);
-          setRewardsError(null);
-        } else {
-          setRewards([]);
-          setRewardsError(
-            rewardResult.reason instanceof Error
-              ? rewardResult.reason.message
-              : "Could not load rewards.",
-          );
-        }
+        applySettledList(
+          taskResult,
+          setTasks,
+          setTasksError,
+          "Could not load tasks.",
+        );
+        applySettledList(
+          rewardResult,
+          setRewards,
+          setRewardsError,
+          "Could not load rewards.",
+        );
       } catch (e) {
         if (cancelled) return;
-        const msg =
-          e instanceof Error ? e.message : "Could not load campaign progress.";
+        const msg = settledErrorMessage(
+          e,
+          "Could not load campaign progress.",
+        );
         setTasks([]);
         setRewards([]);
         setTasksError(msg);

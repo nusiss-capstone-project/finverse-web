@@ -51,20 +51,24 @@ export function pickNullableNum(
   return null;
 }
 
+function coerceBool(v: unknown): boolean | undefined {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number" && Number.isFinite(v)) return v !== 0;
+  if (typeof v !== "string" || !v.trim()) return undefined;
+  const normalized = v.trim().toLowerCase();
+  if (normalized === "true" || normalized === "1") return true;
+  if (normalized === "false" || normalized === "0") return false;
+  return undefined;
+}
+
 export function pickBool(
   o: Record<string, unknown> | null,
   keys: string[],
 ): boolean {
   if (!o) return false;
   for (const key of keys) {
-    const v = o[key];
-    if (typeof v === "boolean") return v;
-    if (typeof v === "number" && Number.isFinite(v)) return v !== 0;
-    if (typeof v === "string" && v.trim()) {
-      const normalized = v.trim().toLowerCase();
-      if (normalized === "true" || normalized === "1") return true;
-      if (normalized === "false" || normalized === "0") return false;
-    }
+    const coerced = coerceBool(o[key]);
+    if (coerced !== undefined) return coerced;
   }
   return false;
 }
