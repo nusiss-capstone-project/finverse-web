@@ -48,25 +48,23 @@ export async function resolveProfileLang(): Promise<string> {
     return stored;
   }
 
-  if (!inflight) {
-    inflight = (async () => {
-      try {
-        const profile = await fetchUserProfile();
-        const language = profile.language?.trim() ?? "";
-        const lang =
-          language && isLanguageCode(language)
-            ? language
-            : DEFAULT_PROFILE_LANG;
-        setCachedProfileLang(lang);
-        return lang;
-      } catch {
-        setCachedProfileLang(DEFAULT_PROFILE_LANG);
-        return DEFAULT_PROFILE_LANG;
-      } finally {
-        inflight = null;
-      }
-    })();
-  }
+  inflight ??= (async () => {
+    try {
+      const profile = await fetchUserProfile();
+      const language = profile.language?.trim() ?? "";
+      const lang =
+        language && isLanguageCode(language)
+          ? language
+          : DEFAULT_PROFILE_LANG;
+      setCachedProfileLang(lang);
+      return lang;
+    } catch {
+      setCachedProfileLang(DEFAULT_PROFILE_LANG);
+      return DEFAULT_PROFILE_LANG;
+    } finally {
+      inflight = null;
+    }
+  })();
 
   return inflight;
 }
