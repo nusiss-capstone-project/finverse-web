@@ -1,0 +1,229 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "identity-ms web APIs (DAST)",
+    "version": "1.0.0",
+    "description": "Filtered to paths containing /web/ for ZAP API scan."
+  },
+  "servers": [
+    {
+      "url": "https://campaignhub.best"
+    }
+  ],
+  "paths": {
+    "/identity-ms/v1/web/kyc/singpass/login": {
+      "get": {
+        "summary": "Start Singpass KYC",
+        "description": "Requires authentication. Returns an authorize URL; the client should redirect the browser to it.",
+        "tags": [
+          "singpass"
+        ],
+        "responses": {
+          "200": {
+            "description": "authorize url",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.BaseResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/identity-ms/v1/web/user-profile": {
+      "get": {
+        "summary": "Get user profile (user)",
+        "tags": [
+          "user-profile"
+        ],
+        "responses": {
+          "200": {
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.UserProfileHTTPResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "user not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.BaseResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update user profile (user)",
+        "tags": [
+          "user-profile"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/data.UpdateUserProfileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.BaseResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid input or market already set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.BaseResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.BaseResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "user not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.BaseResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "api.UserProfileData": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "a***e@example.com"
+          },
+          "kycChecked": {
+            "type": "boolean",
+            "example": true
+          },
+          "language": {
+            "type": "string",
+            "example": "en"
+          },
+          "market": {
+            "type": "string",
+            "example": "SG"
+          },
+          "registeredAt": {
+            "type": "string",
+            "example": "2026-05-16T10:00:00Z"
+          },
+          "username": {
+            "type": "string",
+            "example": "alice"
+          }
+        }
+      },
+      "api.UserProfileHTTPResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "example": 0
+          },
+          "data": {
+            "$ref": "#/components/schemas/api.UserProfileData"
+          },
+          "message": {
+            "type": "string",
+            "example": "success"
+          }
+        }
+      },
+      "data.BaseResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {},
+          "err_msg": {
+            "type": "string"
+          }
+        }
+      },
+      "data.UpdateUserProfileRequest": {
+        "type": "object",
+        "properties": {
+          "language": {
+            "type": "string"
+          },
+          "market": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

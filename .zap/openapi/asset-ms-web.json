@@ -1,0 +1,1018 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "asset-ms web APIs (DAST)",
+    "version": "1.0.0",
+    "description": "Filtered to paths containing /web/ for ZAP API scan."
+  },
+  "servers": [
+    {
+      "url": "https://campaignhub.best"
+    }
+  ],
+  "paths": {
+    "/asset-ms/v1/web/assets": {
+      "get": {
+        "summary": "List assets",
+        "tags": [
+          "Asset"
+        ],
+        "parameters": [
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Currency"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Status active|inactive"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/data.BaseResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/data.AssetVO"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-ms/v1/web/assets/{asset_id}": {
+      "get": {
+        "summary": "Get asset detail",
+        "tags": [
+          "Asset"
+        ],
+        "parameters": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Asset ID"
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Currency"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/data.BaseResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/data.AssetVO"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.BaseResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-ms/v1/web/deposit": {
+      "post": {
+        "summary": "Create fiat deposit",
+        "tags": [
+          "Deposit"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/data.CreateDepositRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/data.BaseResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/data.FiatTransactionVO"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-ms/v1/web/fiat-accounts": {
+      "get": {
+        "summary": "List fiat accounts for current market",
+        "tags": [
+          "Deposit"
+        ],
+        "parameters": [
+          {
+            "name": "currencies",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comma-separated currencies"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/data.BaseResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/data.FiatAccountListVO"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-ms/v1/web/holdings": {
+      "get": {
+        "summary": "List holdings",
+        "tags": [
+          "Holding"
+        ],
+        "parameters": [
+          {
+            "name": "asset_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Asset ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/data.BaseResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/data.HoldingListVO"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-ms/v1/web/ledgers": {
+      "get": {
+        "summary": "List account ledger entries",
+        "tags": [
+          "Deposit"
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Last seen ledger_id"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Page size"
+          },
+          {
+            "name": "asset_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "USD or BTC"
+          },
+          {
+            "name": "business_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "DEPOSIT|PURCHASE|REWARD"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Unix timestamp"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Unix timestamp"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/data.BaseResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/data.LedgerListVO"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-ms/v1/web/orders": {
+      "get": {
+        "summary": "List orders",
+        "tags": [
+          "Order"
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "pending|pay_succeed|pay_fail"
+          },
+          {
+            "name": "asset_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Asset ID"
+          },
+          {
+            "name": "created_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Unix timestamp"
+          },
+          {
+            "name": "created_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Unix timestamp"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Last seen order_id"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Page size"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/data.BaseResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/data.OrderListVO"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create order",
+        "tags": [
+          "Order"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/data.CreateOrderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/data.BaseResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/data.OrderVO"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-ms/v1/web/orders/{order_id}": {
+      "get": {
+        "summary": "Get order detail",
+        "tags": [
+          "Order"
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Order ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/data.BaseResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/data.OrderVO"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-ms/v1/web/quotes": {
+      "post": {
+        "summary": "Generate quote",
+        "tags": [
+          "Quote"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/data.GenQuoteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/data.BaseResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/data.QuoteVO"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "data.AssetVO": {
+        "type": "object",
+        "properties": {
+          "created_at": {
+            "type": "integer"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "current_price": {
+            "type": "string"
+          },
+          "icon_url": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "integer"
+          }
+        }
+      },
+      "data.BaseResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {},
+          "err_msg": {
+            "type": "string"
+          }
+        }
+      },
+      "data.CreateDepositRequest": {
+        "type": "object",
+        "required": [
+          "amount",
+          "currency",
+          "idempotent_key",
+          "payment_method_id"
+        ],
+        "properties": {
+          "amount": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "idempotent_key": {
+            "type": "string"
+          },
+          "payment_method_id": {
+            "type": "integer"
+          }
+        }
+      },
+      "data.CreateOrderRequest": {
+        "type": "object",
+        "required": [
+          "idempotency_key",
+          "payment_method_id",
+          "quantity",
+          "quote_id"
+        ],
+        "properties": {
+          "idempotency_key": {
+            "type": "string"
+          },
+          "payment_method_id": {
+            "type": "integer"
+          },
+          "quantity": {
+            "type": "string"
+          },
+          "quote_id": {
+            "type": "string"
+          }
+        }
+      },
+      "data.FiatAccountListVO": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/data.FiatAccountVO"
+            }
+          }
+        }
+      },
+      "data.FiatAccountVO": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "string"
+          },
+          "balance": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "integer"
+          }
+        }
+      },
+      "data.FiatTransactionVO": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "integer"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "external_payment_id": {
+            "type": "string"
+          },
+          "failure_reason": {
+            "type": "string"
+          },
+          "payment_method_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "transaction_id": {
+            "type": "string"
+          },
+          "transaction_no": {
+            "type": "string"
+          },
+          "transaction_type": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        }
+      },
+      "data.GenQuoteRequest": {
+        "type": "object",
+        "required": [
+          "asset_id"
+        ],
+        "properties": {
+          "asset_id": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          }
+        }
+      },
+      "data.HoldingAssetVO": {
+        "type": "object",
+        "properties": {
+          "icon_url": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          }
+        }
+      },
+      "data.HoldingListVO": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/data.HoldingVO"
+            }
+          }
+        }
+      },
+      "data.HoldingVO": {
+        "type": "object",
+        "properties": {
+          "asset": {
+            "$ref": "#/components/schemas/data.HoldingAssetVO"
+          },
+          "asset_id": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "integer"
+          },
+          "valuation": {
+            "$ref": "#/components/schemas/data.HoldingValuationVO"
+          }
+        }
+      },
+      "data.HoldingValuationVO": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "unit_price": {
+            "type": "string"
+          }
+        }
+      },
+      "data.LedgerListVO": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/data.LedgerVO"
+            }
+          },
+          "next_cursor": {
+            "type": "string"
+          }
+        }
+      },
+      "data.LedgerVO": {
+        "type": "object",
+        "properties": {
+          "asset_code": {
+            "type": "string"
+          },
+          "balance_after": {
+            "type": "string"
+          },
+          "business_id": {
+            "type": "string"
+          },
+          "business_type": {
+            "type": "string"
+          },
+          "change_amount": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "integer"
+          },
+          "ledger_id": {
+            "type": "string"
+          },
+          "ledger_no": {
+            "type": "string"
+          }
+        }
+      },
+      "data.OrderListVO": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/data.OrderVO"
+            }
+          },
+          "next_cursor": {
+            "type": "string"
+          }
+        }
+      },
+      "data.OrderVO": {
+        "type": "object",
+        "properties": {
+          "asset": {
+            "$ref": "#/components/schemas/data.AssetVO"
+          },
+          "created_at": {
+            "type": "integer"
+          },
+          "order_id": {
+            "type": "string"
+          },
+          "order_no": {
+            "type": "string"
+          },
+          "pay_amount": {
+            "type": "string"
+          },
+          "pay_currency": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "string"
+          },
+          "quote_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "unit_price": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "integer"
+          }
+        }
+      },
+      "data.QuoteVO": {
+        "type": "object",
+        "properties": {
+          "asset_id": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "integer"
+          },
+          "quote_id": {
+            "type": "string"
+          },
+          "unit_price": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

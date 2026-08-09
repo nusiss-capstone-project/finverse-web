@@ -1,0 +1,534 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "campaign-center-api web APIs (DAST)",
+    "version": "1.0",
+    "description": "Filtered to paths containing /web/ for ZAP API scan."
+  },
+  "servers": [
+    {
+      "url": "https://campaignhub.best/campaign-center-api/v1"
+    }
+  ],
+  "paths": {
+    "/web/campaigns": {
+      "get": {
+        "summary": "List available campaigns (user)",
+        "tags": [
+          "user-campaign"
+        ],
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Preferred language for landing-page title; default en"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/data.StandardResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/data.WebCampaignListData"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.StandardResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "database unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.StandardResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/web/campaigns/{campaignId}/join": {
+      "post": {
+        "summary": "Join campaign (user)",
+        "tags": [
+          "user-campaign"
+        ],
+        "parameters": [
+          {
+            "name": "campaignId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Campaign ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/data.StandardResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/data.WebJoinCampaignData"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.StandardResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.StandardResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "campaign not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.StandardResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "database unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.StandardResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/web/campaigns/{campaignId}/landing-page": {
+      "get": {
+        "summary": "Get campaign landing page (user)",
+        "tags": [
+          "user-campaign"
+        ],
+        "parameters": [
+          {
+            "name": "campaignId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Campaign ID"
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Preferred language; default en"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/data.StandardResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/data.WebCampaignLandingPageData"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.StandardResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.StandardResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "campaign not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.StandardResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "database unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.StandardResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/web/campaigns/{campaignId}/rules": {
+      "get": {
+        "summary": "Get campaign rules summary (user)",
+        "tags": [
+          "user-campaign"
+        ],
+        "parameters": [
+          {
+            "name": "campaignId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Campaign ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/data.StandardResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/data.WebCampaignRulesData"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.StandardResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.StandardResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "campaign not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.StandardResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "database unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/data.StandardResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "data.LandingPageRepeatableItemVO": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "data.StandardResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "example": 0
+          },
+          "data": {},
+          "message": {
+            "type": "string",
+            "example": "success"
+          }
+        }
+      },
+      "data.WebCampaignLandingPageData": {
+        "type": "object",
+        "properties": {
+          "campaignId": {
+            "type": "integer",
+            "example": 1001
+          },
+          "joined": {
+            "type": "boolean",
+            "example": false
+          },
+          "joinedAt": {
+            "type": "integer",
+            "example": 1717200000
+          },
+          "landingPage": {
+            "$ref": "#/components/schemas/data.WebLandingPageContent"
+          },
+          "market": {
+            "type": "string",
+            "example": "SG"
+          },
+          "name": {
+            "type": "string",
+            "example": "Summer Deposit Bonus"
+          },
+          "timeZone": {
+            "type": "string",
+            "example": "Asia/Singapore"
+          },
+          "userId": {
+            "type": "integer",
+            "example": 42
+          }
+        }
+      },
+      "data.WebCampaignListData": {
+        "type": "object",
+        "properties": {
+          "ongoing": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/data.WebCampaignListItem"
+            }
+          },
+          "upcoming": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/data.WebCampaignListItem"
+            }
+          }
+        }
+      },
+      "data.WebCampaignListItem": {
+        "type": "object",
+        "properties": {
+          "campaignEndTime": {
+            "type": "integer",
+            "example": 1722470400
+          },
+          "campaignStartTime": {
+            "type": "integer",
+            "example": 1717200000
+          },
+          "id": {
+            "type": "integer",
+            "example": 1001
+          },
+          "joined": {
+            "type": "boolean",
+            "example": false
+          },
+          "landingPageId": {
+            "type": "integer",
+            "example": 2001
+          },
+          "market": {
+            "type": "string",
+            "example": "SG"
+          },
+          "status": {
+            "type": "integer",
+            "example": 2
+          },
+          "title": {
+            "type": "string",
+            "example": "Deposit and get a bonus"
+          }
+        }
+      },
+      "data.WebCampaignRulesData": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "projectId": {
+            "type": "integer",
+            "example": 1
+          },
+          "taskGroupId": {
+            "type": "integer",
+            "example": 1
+          }
+        }
+      },
+      "data.WebJoinCampaignData": {
+        "type": "object",
+        "properties": {
+          "campaignId": {
+            "type": "integer",
+            "example": 1001
+          },
+          "joined": {
+            "type": "boolean",
+            "example": true
+          },
+          "joinedAt": {
+            "type": "integer",
+            "example": 1717200000
+          },
+          "message": {
+            "type": "string",
+            "example": "joined"
+          },
+          "userId": {
+            "type": "integer",
+            "example": 42
+          }
+        }
+      },
+      "data.WebLandingPageContent": {
+        "type": "object",
+        "properties": {
+          "bannerImageUrl": {
+            "type": "string",
+            "example": "https://cdn.example.com/banner.png"
+          },
+          "description": {
+            "type": "string",
+            "example": "Join the campaign and complete the deposit task."
+          },
+          "faq": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/data.LandingPageRepeatableItemVO"
+            }
+          },
+          "lang": {
+            "type": "string",
+            "example": "en"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/data.LandingPageRepeatableItemVO"
+            }
+          },
+          "terms": {
+            "type": "string",
+            "example": "One reward per user."
+          },
+          "title": {
+            "type": "string",
+            "example": "Deposit and get a bonus"
+          }
+        }
+      }
+    }
+  }
+}
