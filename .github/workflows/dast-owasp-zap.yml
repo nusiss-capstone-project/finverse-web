@@ -1,27 +1,25 @@
 # DAST against a deployed environment (baseline = spider + passive rules).
 # Prefer staging when possible; production only with explicit approval.
 #
-# Auth (simplest):
-# - Bearer JWT: auth_header=Authorization, auth_header_value=Bearer <token>
-# - Session cookie: auth_header=Cookie, auth_header_value=__session=<value>; ...
+# Auth (repo secrets — not workflow inputs):
+# - DAST_AUTH_HEADER_VALUE: e.g. "Bearer <jwt>" or "__session=..."
+# - DAST_AUTH_HEADER (optional): header name, default Authorization
+#
+# Before running: Settings → Secrets → add DAST_AUTH_HEADER_VALUE (rotate often).
 name: DAST - OWASP ZAP
 
 on:
   workflow_dispatch:
     inputs:
       target_url:
-        description: "Target base URL (e.g. https://your-app.example.com)"
+        description: "Target base URL (must be https and host in allowlist)"
         required: true
         type: string
-      auth_header:
-        description: "Optional auth header name (Authorization or Cookie)"
+      use_auth:
+        description: "Send DAST_AUTH_HEADER* secrets with the scan"
         required: false
-        default: "Authorization"
-        type: string
-      auth_header_value:
-        description: "Optional auth header value (e.g. Bearer <jwt> or __session=...)"
-        required: false
-        type: string
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -29,6 +27,14 @@ permissions:
 concurrency:
   group: dast-zap-${{ github.ref }}
   cancel-in-progress: false
+
+env:
+  # Edit this list when adding deploy hosts. Exact hostname match only.
+  DAST_ALLOWED_HOSTS: |
+    campaignhub.best
+    www.campaignhub.best
+    campaign-center-admin-web.vercel.app
+    finverse-web.vercel.app
 
 jobs:
   zap-baseline:
@@ -40,45 +46,101 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Mask auth header value
-        if: ${{ inputs.auth_header_value != '' }}
-        env:
-          AUTH_HEADER_VALUE: ${{ inputs.auth_header_value }}
-        run: echo "::add-mask::${AUTH_HEADER_VALUE}"
-
       - name: Validate target URL
+        id: target
         env:
           TARGET_URL: ${{ inputs.target_url }}
+          DAST_ALLOWED_HOSTS: ${{ env.DAST_ALLOWED_HOSTS }}
         run: |
           set -euo pipefail
-          if [[ ! "$TARGET_URL" =~ ^https?:// ]]; then
-            echo "target_url must start with http:// or https://"
+
+          if [[ ! "$TARGET_URL" =~ ^https://[^/]+ ]]; then
+            echo "target_url must start with https:// and include a host"
             exit 1
           fi
-          echo "Scanning target: $TARGET_URL"
+
+          # Strip credentials / fragments; reject userinfo and literal IPs.
+          host="$(python3 - <<'PY'
+          import os
+          from urllib.parse import urlparse
+          u = urlparse(os.environ["TARGET_URL"])
+          if u.scheme != "https" or not u.hostname:
+              raise SystemExit("invalid url")
+          if u.username or u.password:
+              raise SystemExit("credentials in URL are not allowed")
+          host = u.hostname.lower()
+          # Reject IP literals (v4/v6) — hostname allowlist only.
+          import ipaddress
+          try:
+              ipaddress.ip_address(host)
+              raise SystemExit("IP targets are not allowed; use an allowlisted hostname")
+          except ValueError:
+              pass
+          print(host)
+          PY
+          )"
+
+          allowed=false
+          while IFS= read -r candidate; do
+            candidate="$(echo "$candidate" | tr -d '[:space:]')"
+            [[ -z "$candidate" ]] && continue
+            if [[ "$host" == "${candidate,,}" ]]; then
+              allowed=true
+              break
+            fi
+          done <<< "$DAST_ALLOWED_HOSTS"
+
+          if [[ "$allowed" != "true" ]]; then
+            echo "Host '$host' is not in DAST_ALLOWED_HOSTS"
+            echo "Allowed:"
+            echo "$DAST_ALLOWED_HOSTS"
+            exit 1
+          fi
+
+          origin="https://${host}"
+          echo "host=${host}" >> "$GITHUB_OUTPUT"
+          echo "origin=${origin}" >> "$GITHUB_OUTPUT"
+          echo "Scanning target: $TARGET_URL (auth scoped to ${origin})"
 
       - name: Prepare ZAP auth environment
         id: auth
         env:
-          AUTH_HEADER: ${{ inputs.auth_header }}
-          AUTH_HEADER_VALUE: ${{ inputs.auth_header_value }}
+          USE_AUTH: ${{ inputs.use_auth }}
+          AUTH_HEADER: ${{ secrets.DAST_AUTH_HEADER }}
+          AUTH_HEADER_VALUE: ${{ secrets.DAST_AUTH_HEADER_VALUE }}
+          AUTH_SITE: ${{ steps.target.outputs.host }}
         run: |
           set -euo pipefail
-          if [[ -n "${AUTH_HEADER_VALUE}" ]]; then
-            delimiter="$(openssl rand -hex 16)"
-            {
-              echo "ZAP_AUTH_HEADER<<${delimiter}"
-              printf '%s\n' "${AUTH_HEADER:-Authorization}"
-              echo "${delimiter}"
-              echo "ZAP_AUTH_HEADER_VALUE<<${delimiter}"
-              printf '%s\n' "${AUTH_HEADER_VALUE}"
-              echo "${delimiter}"
-            } >> "$GITHUB_ENV"
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
+
+          if [[ "${USE_AUTH}" != "true" ]]; then
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "No auth header provided; scanning as anonymous."
+            echo "Auth disabled for this run."
+            exit 0
           fi
+
+          if [[ -z "${AUTH_HEADER_VALUE}" ]]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Secret DAST_AUTH_HEADER_VALUE is empty; scanning as anonymous."
+            exit 0
+          fi
+
+          echo "::add-mask::${AUTH_HEADER_VALUE}"
+
+          delimiter="$(openssl rand -hex 16)"
+          {
+            echo "ZAP_AUTH_HEADER<<${delimiter}"
+            printf '%s\n' "${AUTH_HEADER:-Authorization}"
+            echo "${delimiter}"
+            echo "ZAP_AUTH_HEADER_VALUE<<${delimiter}"
+            printf '%s\n' "${AUTH_HEADER_VALUE}"
+            echo "${delimiter}"
+            echo "ZAP_AUTH_HEADER_SITE<<${delimiter}"
+            printf '%s\n' "${AUTH_SITE}"
+            echo "${delimiter}"
+          } >> "$GITHUB_ENV"
+
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+          echo "header_name=${AUTH_HEADER:-Authorization}" >> "$GITHUB_OUTPUT"
 
       - name: OWASP ZAP Baseline Scan
         id: zap
@@ -125,17 +187,19 @@ jobs:
         if: always()
         env:
           AUTH_ENABLED: ${{ steps.auth.outputs.enabled }}
-          AUTH_HEADER_NAME: ${{ inputs.auth_header }}
+          AUTH_HEADER_NAME: ${{ steps.auth.outputs.header_name }}
           TARGET_URL: ${{ inputs.target_url }}
+          AUTH_SITE: ${{ steps.target.outputs.host }}
         run: |
           {
             echo "## DAST - OWASP ZAP"
             echo ""
             echo "- **Target:** \`${TARGET_URL}\`"
+            echo "- **Host allowlist:** enforced (see workflow \`DAST_ALLOWED_HOSTS\`)"
             if [[ "${AUTH_ENABLED}" == "true" ]]; then
-              echo "- **Auth header:** \`${AUTH_HEADER_NAME}\` (value masked)"
+              echo "- **Auth:** secret \`DAST_AUTH_HEADER_VALUE\` as \`${AUTH_HEADER_NAME:-Authorization}\` (scoped to \`${AUTH_SITE}\`)"
             else
-              echo "- **Auth header:** none (anonymous)"
+              echo "- **Auth:** none (anonymous)"
             fi
             echo "- **Scan type:** baseline (passive)"
             echo "- **Fail on findings:** no (report-only)"
