@@ -1,0 +1,136 @@
+# DAST against a deployed environment (baseline = spider + passive rules).
+# Prefer staging when possible; production only with explicit approval.
+#
+# Auth (simplest):
+# - Bearer JWT: auth_header=Authorization, auth_header_value=Bearer <token>
+# - Session cookie: auth_header=Cookie, auth_header_value=__session=<value>; ...
+name: DAST - OWASP ZAP
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: "Target base URL (e.g. https://your-app.example.com)"
+        required: true
+        type: string
+      auth_header:
+        description: "Optional auth header name (Authorization or Cookie)"
+        required: false
+        default: "Authorization"
+        type: string
+      auth_header_value:
+        description: "Optional auth header value (e.g. Bearer <jwt> or __session=...)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dast-zap-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  zap-baseline:
+    name: ZAP Baseline Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Mask auth header value
+        if: ${{ inputs.auth_header_value != '' }}
+        run: echo "::add-mask::${{ inputs.auth_header_value }}"
+
+      - name: Validate target URL
+        env:
+          TARGET_URL: ${{ inputs.target_url }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$TARGET_URL" =~ ^https?:// ]]; then
+            echo "target_url must start with http:// or https://"
+            exit 1
+          fi
+          echo "Scanning target: $TARGET_URL"
+
+      - name: Prepare ZAP auth environment
+        id: auth
+        env:
+          AUTH_HEADER: ${{ inputs.auth_header }}
+          AUTH_HEADER_VALUE: ${{ inputs.auth_header_value }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${AUTH_HEADER_VALUE}" ]]; then
+            echo "ZAP_AUTH_HEADER=${AUTH_HEADER:-Authorization}" >> "$GITHUB_ENV"
+            echo "ZAP_AUTH_HEADER_VALUE=${AUTH_HEADER_VALUE}" >> "$GITHUB_ENV"
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "No auth header provided; scanning as anonymous."
+          fi
+
+      - name: OWASP ZAP Baseline Scan
+        id: zap
+        uses: zaproxy/action-baseline@v0.14.0
+        continue-on-error: true
+        with:
+          target: ${{ inputs.target_url }}
+          allow_issue_writing: false
+          fail_action: false
+          artifact_name: zap-baseline-report
+          cmd_options: "-I"
+
+      - name: Collect local report copies
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p zap-reports
+          shopt -s nullglob
+          for f in report_html.html report_json.json report_md.md; do
+            if [[ -f "$f" ]]; then
+              cp -f "$f" "zap-reports/"
+            fi
+          done
+          find . -maxdepth 3 \( -name 'report_html.html' -o -name 'report_json.json' -o -name 'report_md.md' \) \
+            -print0 2>/dev/null | while IFS= read -r -d '' f; do
+            cp -f "$f" "zap-reports/" || true
+          done
+          ls -la zap-reports || true
+
+      - name: Upload ZAP reports artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-dast-reports
+          path: |
+            zap-reports/
+            report_html.html
+            report_json.json
+            report_md.md
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Summarize result
+        if: always()
+        env:
+          AUTH_ENABLED: ${{ steps.auth.outputs.enabled }}
+          AUTH_HEADER_NAME: ${{ inputs.auth_header }}
+          TARGET_URL: ${{ inputs.target_url }}
+        run: |
+          {
+            echo "## DAST - OWASP ZAP"
+            echo ""
+            echo "- **Target:** \`${TARGET_URL}\`"
+            if [[ "${AUTH_ENABLED}" == "true" ]]; then
+              echo "- **Auth header:** \`${AUTH_HEADER_NAME}\` (value masked)"
+            else
+              echo "- **Auth header:** none (anonymous)"
+            fi
+            echo "- **Scan type:** baseline (passive)"
+            echo "- **Fail on findings:** no (report-only)"
+            echo "- **Artifacts:** \`zap-dast-reports\`, \`zap-baseline-report\`"
+            echo ""
+            echo "Download from this workflow run → Artifacts."
+          } >> "$GITHUB_STEP_SUMMARY"
