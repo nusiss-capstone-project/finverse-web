@@ -1,5 +1,5 @@
-# DAST against a deployed environment (baseline = spider + passive rules).
-# Prefer staging when possible; production only with explicit approval.
+# Frontend DAST (baseline = spider + passive rules) against the web app host.
+# For backend /web APIs, use workflow "DAST - OWASP ZAP API" instead.
 #
 # Auth (repo secrets — not workflow inputs):
 # - DAST_AUTH_HEADER_VALUE: e.g. "Bearer <jwt>" or "__session=..."

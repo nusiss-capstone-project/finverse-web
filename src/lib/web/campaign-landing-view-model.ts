@@ -51,9 +51,11 @@ export function buildCampaignLandingViewModel(
     asRecord(root.landing_page) ??
     root;
 
+  // Prefer campaign.name over landing-page title for the detail page heading.
   const title =
+    pickStr(root, ["name"]) ||
     pickStr(landing, ["title"]) ||
-    pickStr(root, ["name", "title"]) ||
+    pickStr(root, ["title"]) ||
     `Campaign ${campaignId}`;
   const description = pickStr(landing, ["description"]);
   const bannerUrl =
