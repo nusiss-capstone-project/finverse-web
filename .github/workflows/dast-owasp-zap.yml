@@ -124,15 +124,21 @@ jobs:
             exit 0
           fi
 
-          echo "::add-mask::${AUTH_HEADER_VALUE}"
+          # Secrets/console paste often include trailing newlines → broken Authorization.
+          header_name="$(printf '%s' "${AUTH_HEADER:-Authorization}" | tr -d '\r\n')"
+          header_value="$(printf '%s' "${AUTH_HEADER_VALUE}" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+          if [[ "${header_name}" == "Authorization" && "${header_value}" != Bearer\ * && "${header_value}" != Basic\ * ]]; then
+            header_value="Bearer ${header_value}"
+          fi
+          echo "::add-mask::${header_value}"
 
           delimiter="$(openssl rand -hex 16)"
           {
             echo "ZAP_AUTH_HEADER<<${delimiter}"
-            printf '%s\n' "${AUTH_HEADER:-Authorization}"
+            printf '%s\n' "${header_name}"
             echo "${delimiter}"
             echo "ZAP_AUTH_HEADER_VALUE<<${delimiter}"
-            printf '%s\n' "${AUTH_HEADER_VALUE}"
+            printf '%s\n' "${header_value}"
             echo "${delimiter}"
             echo "ZAP_AUTH_HEADER_SITE<<${delimiter}"
             printf '%s\n' "${AUTH_SITE}"
@@ -140,7 +146,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
           echo "enabled=true" >> "$GITHUB_OUTPUT"
-          echo "header_name=${AUTH_HEADER:-Authorization}" >> "$GITHUB_OUTPUT"
+          echo "header_name=${header_name}" >> "$GITHUB_OUTPUT"
 
       - name: OWASP ZAP Baseline Scan
         id: zap

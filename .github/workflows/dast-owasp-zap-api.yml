@@ -180,7 +180,7 @@ jobs:
           USE_AUTH: ${{ inputs.use_auth }}
           AUTH_HEADER: ${{ secrets.DAST_AUTH_HEADER }}
           AUTH_HEADER_VALUE: ${{ secrets.DAST_AUTH_HEADER_VALUE }}
-          AUTH_SITE: ${{ steps.target.outputs.host }}
+          API_HOST: ${{ inputs.api_host }}
         run: |
           set -euo pipefail
           if [[ "${USE_AUTH}" != "true" ]]; then
@@ -193,21 +193,80 @@ jobs:
             echo "Secret DAST_AUTH_HEADER_VALUE is empty; scanning as anonymous."
             exit 0
           fi
-          echo "::add-mask::${AUTH_HEADER_VALUE}"
-          delimiter="$(openssl rand -hex 16)"
+
+          # Strip CR/LF/spaces — multiline GITHUB_ENV + docker -e often truncates JWTs → 401.
+          header_name="$(printf '%s' "${AUTH_HEADER:-Authorization}" | tr -d '\r\n')"
+          header_value="$(printf '%s' "${AUTH_HEADER_VALUE}" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+          if [[ "${header_name}" == "Authorization" && "${header_value}" != Bearer\ * && "${header_value}" != Basic\ * ]]; then
+            header_value="Bearer ${header_value}"
+          fi
+          echo "::add-mask::${header_value}"
+
+          # Single-line env (no heredoc). Do NOT set ZAP_AUTH_HEADER_SITE — site matching
+          # has dropped auth on OpenAPI scans in practice; apply header to all ZAP requests.
           {
-            echo "ZAP_AUTH_HEADER<<${delimiter}"
-            printf '%s\n' "${AUTH_HEADER:-Authorization}"
-            echo "${delimiter}"
-            echo "ZAP_AUTH_HEADER_VALUE<<${delimiter}"
-            printf '%s\n' "${AUTH_HEADER_VALUE}"
-            echo "${delimiter}"
-            echo "ZAP_AUTH_HEADER_SITE<<${delimiter}"
-            printf '%s\n' "${AUTH_SITE}"
-            echo "${delimiter}"
+            echo "ZAP_AUTH_HEADER=${header_name}"
+            echo "ZAP_AUTH_HEADER_VALUE=${header_value}"
           } >> "$GITHUB_ENV"
+
+          # Clear any site scope from a previous step/job reuse.
+          echo "ZAP_AUTH_HEADER_SITE=" >> "$GITHUB_ENV"
+
+          probe_url="${API_HOST%/}/identity-ms/v1/web/user-profile"
+          status="$(curl -sS -o /tmp/dast-auth-probe.body -w '%{http_code}' \
+            -H "${header_name}: ${header_value}" \
+            "${probe_url}" || true)"
+          echo "Auth preflight (runner curl) ${probe_url} → HTTP ${status}"
+          if [[ "${status}" == "401" || "${status}" == "403" ]]; then
+            echo "::error::Auth preflight got HTTP ${status}. Backend rejected the token in CI."
+            head -c 400 /tmp/dast-auth-probe.body || true
+            echo
+            exit 1
+          fi
+          if [[ "${status}" != "200" ]]; then
+            echo "::warning::Auth preflight got HTTP ${status} (expected 200). Continuing; check ZAP results."
+          fi
+
+          # Prove docker -e receives the full token (same mechanism as action-api-scan).
+          docker_len="$(docker run --rm \
+            -e ZAP_AUTH_HEADER_VALUE="${header_value}" \
+            alpine:3.20 \
+            sh -c 'printf %s "$ZAP_AUTH_HEADER_VALUE" | wc -c')"
+          expected_len="$(printf %s "${header_value}" | wc -c)"
+          echo "Auth docker env length=${docker_len} expected=${expected_len}"
+          if [[ "${docker_len}" != "${expected_len}" ]]; then
+            echo "::error::Docker truncated ZAP_AUTH_HEADER_VALUE (${docker_len} vs ${expected_len})."
+            exit 1
+          fi
+
           echo "enabled=true" >> "$GITHUB_OUTPUT"
-          echo "header_name=${AUTH_HEADER:-Authorization}" >> "$GITHUB_OUTPUT"
+          echo "header_name=${header_name}" >> "$GITHUB_OUTPUT"
+          echo "probe_status=${status}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify auth env visible to next step
+        if: ${{ steps.auth.outputs.enabled == 'true' }}
+        env:
+          API_HOST: ${{ inputs.api_host }}
+        run: |
+          set -euo pipefail
+          : "${ZAP_AUTH_HEADER:?missing ZAP_AUTH_HEADER}"
+          : "${ZAP_AUTH_HEADER_VALUE:?missing ZAP_AUTH_HEADER_VALUE}"
+          echo "ZAP_AUTH_HEADER=${ZAP_AUTH_HEADER}"
+          echo "ZAP_AUTH_HEADER_VALUE length=$(printf %s "$ZAP_AUTH_HEADER_VALUE" | wc -c)"
+          # Must not scope by site for API scan.
+          if [[ -n "${ZAP_AUTH_HEADER_SITE:-}" ]]; then
+            echo "::warning::ZAP_AUTH_HEADER_SITE is set to '${ZAP_AUTH_HEADER_SITE}'; unsetting for API scan."
+            echo "ZAP_AUTH_HEADER_SITE=" >> "$GITHUB_ENV"
+          fi
+          probe_url="${API_HOST%/}/identity-ms/v1/web/user-profile"
+          status="$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "${ZAP_AUTH_HEADER}: ${ZAP_AUTH_HEADER_VALUE}" \
+            "${probe_url}" || true)"
+          echo "Post-GITHUB_ENV curl → HTTP ${status}"
+          if [[ "${status}" == "401" || "${status}" == "403" ]]; then
+            echo "::error::Token broke after writing GITHUB_ENV (HTTP ${status})."
+            exit 1
+          fi
 
       - name: OWASP ZAP API Scan
         id: zap
