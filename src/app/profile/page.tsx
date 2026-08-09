@@ -41,6 +41,7 @@ import {
   isMarketCode,
   optionLabel,
 } from "@/lib/web/profile-enums";
+import { setCachedProfileLang } from "@/lib/web/profile-lang";
 import {
   apiErrorMessage,
   fetchSingpassKycAuthorizeUrl,
@@ -121,6 +122,7 @@ export default function ProfilePage() {
       setDisplayName(next.username);
       setLanguage(isLanguageCode(next.language) ? next.language : "");
       setMarket(isMarketCode(next.market) ? next.market : "");
+      setCachedProfileLang(next.language);
     } catch (e) {
       setProfile(null);
       setError(apiErrorMessage(e));
@@ -159,6 +161,7 @@ export default function ProfilePage() {
     try {
       await updateUserProfile({ language: value });
       setProfile((prev) => (prev ? { ...prev, language: value } : prev));
+      setCachedProfileLang(value);
     } catch (e) {
       setLanguage(previous);
       setSettingsError(apiErrorMessage(e));

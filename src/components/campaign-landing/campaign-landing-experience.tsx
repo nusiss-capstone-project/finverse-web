@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 
@@ -14,6 +14,10 @@ import { CampaignTermsSection } from "@/components/campaign-landing/campaign-ter
 import { withLangParam } from "@/components/user/user-shell";
 import { isNonProductionRuntime } from "@/lib/is-non-production-runtime";
 import { buildCampaignLandingViewModel } from "@/lib/web/campaign-landing-view-model";
+import {
+  DEFAULT_PROFILE_LANG,
+  resolveProfileLang,
+} from "@/lib/web/profile-lang";
 import {
   buildCampaignLandingPageUrl,
   fetchCampaignLandingPage,
@@ -28,14 +32,9 @@ function parseId(raw: string | string[] | undefined): number {
 
 export function CampaignLandingExperience() {
   const params = useParams();
-  const searchParams = useSearchParams();
   const campaignId = useMemo(() => parseId(params?.id), [params?.id]);
 
-  const lang =
-    searchParams.get("lang")?.trim() ||
-    searchParams.get("language")?.trim() ||
-    undefined;
-
+  const [lang, setLang] = useState(DEFAULT_PROFILE_LANG);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [model, setModel] = useState<ReturnType<
@@ -57,18 +56,23 @@ export function CampaignLandingExperience() {
     async function load() {
       setLoading(true);
       setError(null);
+
+      const profileLang = await resolveProfileLang();
+      if (cancelled) return;
+      setLang(profileLang);
+
       if (isNonProductionRuntime()) {
         console.log(
           "[campaigns/landing] GET",
           buildCampaignLandingPageUrl(campaignId, {
-            lang,
+            lang: profileLang,
           }),
         );
       }
 
       try {
         const envelope = await fetchCampaignLandingPage(campaignId, {
-          lang,
+          lang: profileLang,
         });
         if (cancelled) return;
         if (envelope.code != null && envelope.code !== 0) {
@@ -91,7 +95,7 @@ export function CampaignLandingExperience() {
     return () => {
       cancelled = true;
     };
-  }, [campaignId, lang]);
+  }, [campaignId]);
 
   const handleJoin = useCallback(async () => {
     if (!Number.isFinite(campaignId) || joining) return;
