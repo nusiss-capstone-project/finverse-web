@@ -38,11 +38,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Mask auth header value
         if: ${{ inputs.auth_header_value != '' }}
-        run: echo "::add-mask::${{ inputs.auth_header_value }}"
+        env:
+          AUTH_HEADER_VALUE: ${{ inputs.auth_header_value }}
+        run: echo "::add-mask::${AUTH_HEADER_VALUE}"
 
       - name: Validate target URL
         env:
@@ -63,8 +65,15 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -n "${AUTH_HEADER_VALUE}" ]]; then
-            echo "ZAP_AUTH_HEADER=${AUTH_HEADER:-Authorization}" >> "$GITHUB_ENV"
-            echo "ZAP_AUTH_HEADER_VALUE=${AUTH_HEADER_VALUE}" >> "$GITHUB_ENV"
+            delimiter="$(openssl rand -hex 16)"
+            {
+              echo "ZAP_AUTH_HEADER<<${delimiter}"
+              printf '%s\n' "${AUTH_HEADER:-Authorization}"
+              echo "${delimiter}"
+              echo "ZAP_AUTH_HEADER_VALUE<<${delimiter}"
+              printf '%s\n' "${AUTH_HEADER_VALUE}"
+              echo "${delimiter}"
+            } >> "$GITHUB_ENV"
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
@@ -73,7 +82,7 @@ jobs:
 
       - name: OWASP ZAP Baseline Scan
         id: zap
-        uses: zaproxy/action-baseline@v0.14.0
+        uses: zaproxy/action-baseline@7c4deb10e6261301961c86d65d54a516394f9aed # v0.14.0
         continue-on-error: true
         with:
           target: ${{ inputs.target_url }}
@@ -101,7 +110,7 @@ jobs:
 
       - name: Upload ZAP reports artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: zap-dast-reports
           path: |
