@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
-/* eslint-disable */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/ban-ts-comment, @typescript-eslint/no-unused-vars */
 export class CancelError extends Error {
 
     constructor(message: string) {
@@ -89,7 +89,8 @@ export class CancelablePromise<T> implements Promise<T> {
         return "Cancellable Promise";
     }
 
-    public then<TResult1 = T, TResult2 = never>(
+    // Intentionally thenable so callers can await CancelablePromise (openapi client).
+    public then<TResult1 = T, TResult2 = never>( // NOSONAR S6544
         onFulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
         onRejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null
     ): Promise<TResult1 | TResult2> {

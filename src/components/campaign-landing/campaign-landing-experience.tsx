@@ -27,7 +27,7 @@ import {
 function parseId(raw: string | string[] | undefined): number {
   const s = Array.isArray(raw) ? raw[0] : raw;
   const n = Number(s);
-  return Number.isFinite(n) && n > 0 ? n : NaN;
+  return Number.isFinite(n) && n > 0 ? n : Number.NaN;
 }
 
 export function CampaignLandingExperience() {

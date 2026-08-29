@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
-/* eslint-disable */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/ban-ts-comment, @typescript-eslint/no-unused-vars */
 import { ApiError } from './ApiError';
 import type { ApiRequestOptions } from './ApiRequestOptions';
 import type { ApiResult } from './ApiResult';
@@ -42,7 +42,7 @@ export const base64 = (str: string): string => {
     try {
         return btoa(str);
     } catch (err) {
-        // @ts-ignore
+        // @ts-expect-error -- Buffer fallback when btoa is unavailable
         return Buffer.from(str).toString('base64');
     }
 };
@@ -86,7 +86,7 @@ const getUrl = (config: OpenAPIConfig, options: ApiRequestOptions): string => {
 
     const path = options.url
         .replace('{api-version}', config.VERSION)
-        .replace(/{(.*?)}/g, (substring: string, group: string) => {
+        .replace(/\{([^}]*)\}/g, (substring: string, group: string) => {
             if (options.path?.hasOwnProperty(group)) {
                 return encoder(String(options.path[group]));
             }

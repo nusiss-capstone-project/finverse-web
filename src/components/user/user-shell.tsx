@@ -16,7 +16,7 @@ const NAV = [
 
 export function useDemoUserId(defaultUserId = 10001): number {
   const raw = process.env.NEXT_PUBLIC_DEMO_USER_ID;
-  const n = raw == null ? NaN : Number(raw);
+  const n = raw == null ? Number.NaN : Number(raw);
   return Number.isFinite(n) && n > 0 ? n : defaultUserId;
 }
 
